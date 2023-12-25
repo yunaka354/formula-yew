@@ -1,7 +1,9 @@
-use axum::{http::StatusCode, routing::get, Json, Router};
+use axum::{routing::get, Router};
 use http::Method;
-use serde::Serialize;
 use tower_http::cors::{Any, CorsLayer};
+
+mod handlers;
+use handlers::{root, standings_handler};
 
 #[tokio::main]
 async fn main() {
@@ -19,31 +21,11 @@ async fn main() {
     // build our application with a route
     let app = Router::new()
         .route("/", get(root))
-        .route("/user", get(user_handler))
+        .route("/standings", get(standings_handler))
         .layer(cors);
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind(port).await.unwrap();
-    println!("server is listening port {:?}", port);
+    println!("server is listening port http://{}", port);
     axum::serve(listener, app).await.unwrap();
-}
-
-// basic handler that responds with a static string
-async fn root() -> &'static str {
-    "Hello, World"
-}
-
-async fn user_handler() -> (StatusCode, Json<User>) {
-    let user = User {
-        id: 1,
-        username: "test".to_string(),
-    };
-    (StatusCode::OK, Json(user))
-}
-
-// the output to our `create_user` handler
-#[derive(Serialize)]
-struct User {
-    id: u64,
-    username: String,
 }
