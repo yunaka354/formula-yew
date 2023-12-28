@@ -4,6 +4,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 mod handlers;
 use handlers::{root, standings_handler};
+mod queries;
 
 #[tokio::main]
 async fn main() {
