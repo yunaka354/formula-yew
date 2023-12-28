@@ -1,8 +1,9 @@
+use axum::extract::Query;
 use axum::{http::StatusCode, Json};
 use ergast_rust::api::{Path, URLParams};
 use ergast_rust::ergast::Ergast;
 use ergast_rust::models::{MRData, StandingTable};
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 // the output to our `create_user` handler
 #[derive(Serialize)]
@@ -16,14 +17,24 @@ pub async fn root() -> &'static str {
     "Hello, World"
 }
 
+#[derive(Deserialize)]
+pub struct Round {
+    year: i32,
+    round: i32,
+}
+
 // basic handler that responds with a static string
 pub async fn standings_handler(
+    round: Query<Round>,
 ) -> Result<(StatusCode, Json<MRData<StandingTable>>), (StatusCode, Json<&'static str>)> {
     let path = Path {
-        year: 2023,
-        round: Some(1),
+        year: round.year,
+        round: Some(round.round),
     };
-    let params = URLParams::default();
+    let params = URLParams {
+        limit: 100,
+        offset: 0,
+    };
     let result = Ergast::standings(path, params).await;
 
     match result {
