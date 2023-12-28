@@ -1,6 +1,5 @@
 # Description
-My boilerplate for Rust with Docker using axum and Yew.  
-Both components can communicate each other. `client` will pull json file from `server` component via API.
+Formula 1 data visualization with Axum and Yew framework.
 
 # Basic Usage
 `docker-compose up`
