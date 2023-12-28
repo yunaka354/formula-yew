@@ -3,7 +3,7 @@ use http::Method;
 use tower_http::cors::{Any, CorsLayer};
 
 mod handlers;
-use handlers::{root, standings_handler, seasons_handler, races_handler};
+use handlers::{races_handler, root, seasons_handler, standings_handler};
 mod queries;
 
 #[tokio::main]

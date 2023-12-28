@@ -3,7 +3,7 @@ use axum::extract::Query;
 use axum::{http::StatusCode, Json};
 use ergast_rust::api::{Path, URLParams};
 use ergast_rust::ergast::Ergast;
-use ergast_rust::models::{MRData, StandingTable, SeasonTable, RaceTable};
+use ergast_rust::models::{MRData, RaceTable, SeasonTable, StandingTable};
 
 // basic handler that responds with a static string
 pub async fn root() -> &'static str {
@@ -11,7 +11,8 @@ pub async fn root() -> &'static str {
 }
 
 // basic handler returns a JSON object from Ergast::seasons
-pub async fn seasons_handler() -> Result<(StatusCode, Json<MRData<SeasonTable>>), (StatusCode, Json<&'static str>)> {
+pub async fn seasons_handler(
+) -> Result<(StatusCode, Json<MRData<SeasonTable>>), (StatusCode, Json<&'static str>)> {
     let params = URLParams {
         limit: 100,
         offset: 0,
@@ -26,7 +27,7 @@ pub async fn seasons_handler() -> Result<(StatusCode, Json<MRData<SeasonTable>>)
 
 // handler returns a JSON object from Ergast::race
 pub async fn races_handler(
-    year: Query<YearQuery>
+    year: Query<YearQuery>,
 ) -> Result<(StatusCode, Json<MRData<RaceTable>>), (StatusCode, Json<&'static str>)> {
     let params = URLParams {
         limit: 100,
