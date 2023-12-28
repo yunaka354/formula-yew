@@ -3,7 +3,7 @@ use http::Method;
 use tower_http::cors::{Any, CorsLayer};
 
 mod handlers;
-use handlers::{root, standings_handler};
+use handlers::{root, standings_handler, seasons_handler, races_handler};
 mod queries;
 
 #[tokio::main]
@@ -23,6 +23,8 @@ async fn main() {
     let app = Router::new()
         .route("/", get(root))
         .route("/standings", get(standings_handler))
+        .route("/seasons", get(seasons_handler))
+        .route("/races", get(races_handler))
         .layer(cors);
 
     // run our app with hyper, listening globally on port 3000
