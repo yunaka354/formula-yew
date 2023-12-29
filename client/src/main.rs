@@ -25,23 +25,41 @@ fn app() -> Html {
             round: 15,
             circuit_name: "Sochi Autodrom".to_string(),
             date: "September 26, 2021".to_string(),
-            laps: None,
+            laps: Some(50),
         }
     ];
 
     html! {
+        // table header for race entities
         <div>
-            {
-                for races.iter().map(|race| {
-                    html! {
-                        <div>
-                            <p>{ format!("Season: {}", race.season) }</p>
-                            <p>{ format!("Round: {}", race.round) }</p>
-                            <p>{ format!("Circuit Name: {}", race.circuit_name) }</p>
-                        </div>
+            <h1>{ "Formula 1 2021 Season" }</h1>
+            <table>
+                <thead>
+                    <tr>
+                        <th>{ "Season" }</th>
+                        <th>{ "Round" }</th>
+                        <th>{ "Circuit" }</th>
+                        <th>{ "Date" }</th>
+                        <th>{ "Laps" }</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {
+                        for races.iter().map(|race| {
+                            // map out attributes in race entity
+                            html! {
+                                <tr>
+                                    <td>{ race.season }</td>
+                                    <td>{ race.round }</td>
+                                    <td>{ &race.circuit_name }</td>
+                                    <td>{ &race.date }</td>
+                                    <td>{ race.laps }</td>
+                                </tr>
+                            }
+                        })
                     }
-                })
-            }
+                </tbody>
+            </table>
         </div>
     }
 }
