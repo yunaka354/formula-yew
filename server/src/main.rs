@@ -4,6 +4,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 mod handlers;
 use handlers::{races_handler, root, seasons_handler, standings_handler};
+mod models;
 mod queries;
 
 #[tokio::main]

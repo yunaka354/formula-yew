@@ -1,3 +1,4 @@
+use gloo_net::http::Request;
 use yew::prelude::*;
 
 mod models;
@@ -5,61 +6,70 @@ use models::Race;
 
 #[function_component(App)]
 fn app() -> Html {
-    let races = vec![
-        Race {
-            season: 2021,
-            round: 5,
-            circuit_name: "Circuit de Monaco".to_string(),
-            date: "May 23, 2021".to_string(),
-            laps: None,
-        },
-        Race {
-            season: 2021,
-            round: 14,
-            circuit_name: "Autodromo Nazionale di Monza".to_string(),
-            date: "September 12, 2021".to_string(),
-            laps: None,
-        },
-        Race {
-            season: 2021,
-            round: 15,
-            circuit_name: "Sochi Autodrom".to_string(),
-            date: "September 26, 2021".to_string(),
-            laps: Some(50),
-        }
-    ];
+    let races = use_state(|| None);
+    {
+        let races = races.clone();
+        use_effect_with((), move |_| {
+            let races = races.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let url = "http://localhost:3000/races?year=2023";
+                let response: Vec<Race> = Request::get(url)
+                    .send()
+                    .await
+                    .unwrap()
+                    .json()
+                    .await
+                    .unwrap();
+                races.set(Some(response));
+            });
+            || ()
+        });
+    }
 
     html! {
-        // table header for race entities
         <div>
-            <h1>{ "Formula 1 2021 Season" }</h1>
-            <table>
-                <thead>
-                    <tr>
-                        <th>{ "Season" }</th>
-                        <th>{ "Round" }</th>
-                        <th>{ "Circuit" }</th>
-                        <th>{ "Date" }</th>
-                        <th>{ "Laps" }</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {
-                        for races.iter().map(|race| {
-                            // map out attributes in race entity
-                            html! {
-                                <tr>
-                                    <td>{ race.season }</td>
-                                    <td>{ race.round }</td>
-                                    <td>{ &race.circuit_name }</td>
-                                    <td>{ &race.date }</td>
-                                    <td>{ race.laps }</td>
-                                </tr>
-                            }
-                        })
+            {
+                match (*races).clone() {
+                    Some(races) => {
+                        html! {
+                            <>
+                                <h1>{ "Formula 1 2023 Season" }</h1>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>{ "Season" }</th>
+                                            <th>{ "Round" }</th>
+                                            <th>{ "Title" }</th>
+                                            <th>{ "Circuit" }</th>
+                                            <th>{ "Date" }</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {
+                                            for races.iter().map(|race| {
+                                                html! {
+                                                    <tr>
+                                                        <td>{ race.season }</td>
+                                                        <td>{ race.round }</td>
+                                                        <td>{ &race.race_name }</td>
+                                                        <td>{ &race.circuit_name }</td>
+                                                        <td>{ &race.date }</td>
+                                                    </tr>
+                                                }
+                                            })
+                                        }
+                                    </tbody>
+                                </table>
+                            </>
+                        }
+                    },
+                    None => {
+                        html! {
+                            <h1>{ "Loading..." }</h1>
+                        }
                     }
-                </tbody>
-            </table>
+                }
+            }
         </div>
     }
 }
