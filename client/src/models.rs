@@ -8,3 +8,15 @@ pub struct Race {
     pub circuit_name: String,
     pub date: String,
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RaceResult {
+    pub position: i32,
+    pub position_text: String,
+    pub code: String,
+    pub given_name: String,
+    pub family_name: String,
+    pub points: f32,
+    pub status: String,
+    pub constructor: String,
+}

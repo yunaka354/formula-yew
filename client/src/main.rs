@@ -1,11 +1,118 @@
+use std::collections::HashMap;
+
 use gloo_net::http::Request;
+#[allow(unused_imports)]
+use log::info;
 use yew::prelude::*;
+use yew_router::prelude::*;
 
 mod models;
 use models::Race;
 
-#[function_component(App)]
-fn app() -> Html {
+use crate::models::RaceResult;
+
+#[derive(Clone, Routable, PartialEq)]
+pub enum Route {
+    #[at("/")]
+    Home,
+    #[at("/results")]
+    Results,
+}
+
+pub fn switch(route: Route) -> Html {
+    match route {
+        Route::Home => html! { <Home /> },
+        Route::Results => html! { <Results /> },
+    }
+}
+
+#[function_component(Results)]
+fn results() -> Html {
+    let location = use_location().unwrap();
+    // NOTE: location.query_str() returns a string with a leading "?"
+    let query_string = location.query_str().replace("?", "");
+    let query_params: HashMap<String, String> =
+        serde_urlencoded::from_str(&query_string).unwrap_or_default();
+
+    let year = query_params.get("year").cloned().unwrap_or_default();
+    let round = query_params.get("round").cloned().unwrap_or_default();
+    let title = format!("Formula 1 {} Round {}", &year, &round);
+
+    let results = use_state(|| None);
+    {
+        let results = results.clone();
+        use_effect_with((), move |_| {
+            let results = results.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let url = format!(
+                    "http://localhost:3000/results?year={}&round={}",
+                    year, round
+                );
+                let response: Vec<RaceResult> = Request::get(&url)
+                    .send()
+                    .await
+                    .unwrap()
+                    .json()
+                    .await
+                    .unwrap();
+                results.set(Some(response));
+            });
+            || ()
+        });
+    }
+
+    html! {
+        <div>
+            {
+                match (*results).clone() {
+                    Some(results) => {
+                        html! {
+                            <>
+                                <h1>{ title }</h1>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>{ "Position" }</th>
+                                            <th>{ "Code" }</th>
+                                            <th>{ "Driver" }</th>
+                                            <th>{ "Team" }</th>
+                                            <th>{ "Points" }</th>
+                                            <th>{ "Status" }</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {
+                                            for results.iter().map(|result| {
+                                                html! {
+                                                    <tr>
+                                                        <td>{ result.position }</td>
+                                                        <td>{ result.code.clone() }</td>
+                                                        <td>{ format!("{} {}", result.given_name.clone(), result.family_name.clone()) }</td>
+                                                        <td>{ result.constructor.clone() }</td>
+                                                        <td>{ result.points }</td>
+                                                        <td>{ result.status.clone() }</td>
+                                                    </tr>
+                                                }
+                                            })
+                                        }
+                                    </tbody>
+                                </table>
+                            </>
+                        }
+                    },
+                    None => {
+                        html! {
+                            <h1>{ "Loading..." }</h1>
+                        }
+                    }
+                }
+            }
+        </div>
+    }
+}
+
+#[function_component(Home)]
+fn home() -> Html {
     let races = use_state(|| None);
     {
         let races = races.clone();
@@ -51,7 +158,7 @@ fn app() -> Html {
                                                     <tr>
                                                         <td>{ race.season }</td>
                                                         <td>{ race.round }</td>
-                                                        <td>{ &race.race_name }</td>
+                                                        <td><a href={format!("/results?year={}&round={}", 2023, race.round)}> { &race.race_name } </a></td>
                                                         <td>{ &race.circuit_name }</td>
                                                         <td>{ &race.date }</td>
                                                     </tr>
@@ -74,6 +181,16 @@ fn app() -> Html {
     }
 }
 
+#[function_component(App)]
+pub fn app() -> Html {
+    html! {
+        <BrowserRouter>
+            <Switch<Route> render={switch} />
+        </BrowserRouter>
+    }
+}
+
 fn main() {
+    wasm_logger::init(wasm_logger::Config::default());
     yew::Renderer::<App>::new().render();
 }
