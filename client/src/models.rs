@@ -29,7 +29,7 @@ pub struct Season {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Lap {
-    pub driver_id: String, 
+    pub driver_id: String,
     pub lap: i32,
     pub position: i32,
     pub time: String,

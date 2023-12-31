@@ -5,7 +5,8 @@ use yew_router::prelude::*;
 
 mod components;
 mod models;
-use components::{Races, Seasons, Detail};
+mod utils;
+use components::{Detail, Races, Seasons};
 
 #[derive(Clone, Routable, PartialEq)]
 pub enum Route {

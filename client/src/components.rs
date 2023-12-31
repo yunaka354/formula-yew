@@ -1,5 +1,7 @@
-use crate::models::{Race, RaceResult, Season, Lap};
-use gloo_net::http::Request;
+use crate::{
+    models::{Lap, Race, RaceResult, Season},
+    utils,
+};
 use std::collections::HashMap;
 use yew::prelude::*;
 use yew_router::prelude::*;
@@ -13,13 +15,7 @@ pub fn seasons() -> Html {
             let seasons = seasons.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 let url = "http://localhost:3000/seasons";
-                let response: Vec<Season> = Request::get(url)
-                    .send()
-                    .await
-                    .unwrap()
-                    .json()
-                    .await
-                    .unwrap();
+                let response = utils::fetch_server::<Vec<Season>>(url).await;
                 seasons.set(Some(response));
             });
             || ()
@@ -94,17 +90,8 @@ pub fn laps(props: &DetailProps) -> Html {
         use_effect_with((), move |_| {
             let laps = laps.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let url = format!(
-                    "http://localhost:3000/laps?year={}&round={}",
-                    year, round
-                );
-                let response: Vec<Lap> = Request::get(&url)
-                    .send()
-                    .await
-                    .unwrap()
-                    .json()
-                    .await
-                    .unwrap();
+                let url = format!("http://localhost:3000/laps?year={}&round={}", year, round);
+                let response = utils::fetch_server::<Vec<Lap>>(&url).await;
                 laps.set(Some(response));
             });
             || ()
@@ -170,13 +157,7 @@ pub fn results(props: &DetailProps) -> Html {
                     "http://localhost:3000/results?year={}&round={}",
                     year, round
                 );
-                let response: Vec<RaceResult> = Request::get(&url)
-                    .send()
-                    .await
-                    .unwrap()
-                    .json()
-                    .await
-                    .unwrap();
+                let response = utils::fetch_server::<Vec<RaceResult>>(&url).await;
                 results.set(Some(response));
             });
             || ()
@@ -248,13 +229,7 @@ pub fn races() -> Html {
             let races = races.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 let url = format!("http://localhost:3000/races?year={}", year);
-                let response: Vec<Race> = Request::get(&url)
-                    .send()
-                    .await
-                    .unwrap()
-                    .json()
-                    .await
-                    .unwrap();
+                let response = utils::fetch_server::<Vec<Race>>(&url).await;
                 races.set(Some(response));
             });
             || ()
