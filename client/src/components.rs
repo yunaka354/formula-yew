@@ -223,6 +223,7 @@ pub fn races() -> Html {
         serde_urlencoded::from_str(&query_string).unwrap_or_default();
 
     let year = query_params.get("year").cloned().unwrap_or_default();
+    let title = format!("Formula 1 {} Season", year);
     {
         let races = races.clone();
         use_effect_with((), move |_| {
@@ -243,7 +244,7 @@ pub fn races() -> Html {
                     Some(races) => {
                         html! {
                             <>
-                                <h1>{ "Formula 1 2023 Season" }</h1>
+                                <h1>{ title }</h1>
                                 <table>
                                     <thead>
                                         <tr>
@@ -261,7 +262,7 @@ pub fn races() -> Html {
                                                     <tr>
                                                         <td>{ race.season }</td>
                                                         <td>{ race.round }</td>
-                                                        <td><a href={format!("/results?year={}&round={}", 2023, race.round)}> { &race.race_name } </a></td>
+                                                        <td><a href={format!("/results?year={}&round={}", race.season, race.round)}> { &race.race_name } </a></td>
                                                         <td>{ &race.circuit_name }</td>
                                                         <td>{ &race.date }</td>
                                                     </tr>
