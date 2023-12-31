@@ -3,7 +3,7 @@ use http::Method;
 use tower_http::cors::{Any, CorsLayer};
 
 mod handlers;
-use handlers::{races_handler, root, seasons_handler, standings_handler};
+use handlers::{laps_handler, races_handler, root, seasons_handler, standings_handler};
 
 use crate::handlers::results_handler;
 mod models;
@@ -29,6 +29,7 @@ async fn main() {
         .route("/seasons", get(seasons_handler))
         .route("/races", get(races_handler))
         .route("/results", get(results_handler))
+        .route("/laps", get(laps_handler))
         .layer(cors);
 
     // run our app with hyper, listening globally on port 3000
