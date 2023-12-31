@@ -113,7 +113,7 @@ pub async fn seasons_handler() -> Result<(StatusCode, Json<Value>), (StatusCode,
 
     match result {
         Ok(seasons) => {
-            let response: Vec<SeasonResponse> = seasons
+            let mut response: Vec<SeasonResponse> = seasons
                 .table
                 .seasons
                 .iter()
@@ -122,6 +122,7 @@ pub async fn seasons_handler() -> Result<(StatusCode, Json<Value>), (StatusCode,
                     url: entity.url.clone(),
                 })
                 .collect();
+            response.reverse();
             let value = serde_json::to_value(response).unwrap();
             Ok((StatusCode::OK, Json(value)))
         }
