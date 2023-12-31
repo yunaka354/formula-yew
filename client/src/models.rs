@@ -20,3 +20,9 @@ pub struct RaceResult {
     pub status: String,
     pub constructor: String,
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Season {
+    pub season: i32,
+    pub url: String,
+}

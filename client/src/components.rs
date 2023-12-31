@@ -1,9 +1,61 @@
-use crate::models::Race;
-use crate::models::RaceResult;
+use crate::models::{Race, RaceResult, Season};
 use gloo_net::http::Request;
 use std::collections::HashMap;
 use yew::prelude::*;
 use yew_router::prelude::*;
+
+#[function_component(Seasons)]
+pub fn seasons() -> Html {
+    let seasons = use_state(|| None);
+    {
+        let seasons = seasons.clone();
+        use_effect_with((), move |_| {
+            let seasons = seasons.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let url = "http://localhost:3000/seasons";
+                let response: Vec<Season> = Request::get(url)
+                    .send()
+                    .await
+                    .unwrap()
+                    .json()
+                    .await
+                    .unwrap();
+                seasons.set(Some(response));
+            });
+            || ()
+        });
+    }
+
+    html! {
+        <div>
+            {
+                match (*seasons).clone() {
+                    Some(seasons) => {
+                        html! {
+                            <>
+                                <h1>{ "Formula 1 Seasons" }</h1>
+                                <ul>
+                                    {
+                                        for seasons.iter().map(|season| {
+                                            html! {
+                                                <li><a href={ format!("./races?year={}", season.season.clone()) }>{ season.season.clone() }</a></li>
+                                            }
+                                        })
+                                    }
+                                </ul>
+                            </>
+                        }
+                    },
+                    None => {
+                        html! {
+                            <h1>{ "Loading..." }</h1>
+                        }
+                    }
+                }
+            }
+        </div>
+    }
+}
 
 #[function_component(Results)]
 pub fn results() -> Html {
@@ -90,16 +142,23 @@ pub fn results() -> Html {
     }
 }
 
-#[function_component(Home)]
-pub fn home() -> Html {
+#[function_component(Races)]
+pub fn races() -> Html {
     let races = use_state(|| None);
+    let location = use_location().unwrap();
+    // NOTE: location.query_str() returns a string with a leading "?"
+    let query_string = location.query_str().replace("?", "");
+    let query_params: HashMap<String, String> =
+        serde_urlencoded::from_str(&query_string).unwrap_or_default();
+
+    let year = query_params.get("year").cloned().unwrap_or_default();
     {
         let races = races.clone();
         use_effect_with((), move |_| {
             let races = races.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let url = "http://localhost:3000/races?year=2023";
-                let response: Vec<Race> = Request::get(url)
+                let url = format!("http://localhost:3000/races?year={}", year);
+                let response: Vec<Race> = Request::get(&url)
                     .send()
                     .await
                     .unwrap()

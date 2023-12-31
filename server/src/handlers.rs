@@ -1,30 +1,15 @@
-use crate::models::{RaceResponse, ResultResponse};
+use crate::models::{RaceResponse, ResultResponse, SeasonResponse};
 use crate::queries::{RoundQuery, YearQuery};
 use axum::extract::Query;
 use axum::{http::StatusCode, Json};
 use ergast_rust::api::{Path, URLParams};
 use ergast_rust::ergast::Ergast;
-use ergast_rust::models::{MRData, SeasonTable, StandingTable};
+use ergast_rust::models::{MRData, StandingTable};
 use serde_json::Value;
 
 // basic handler that responds with a static string
 pub async fn root() -> &'static str {
     "Hello, World"
-}
-
-// basic handler returns a JSON object from Ergast::seasons
-pub async fn seasons_handler(
-) -> Result<(StatusCode, Json<MRData<SeasonTable>>), (StatusCode, Json<&'static str>)> {
-    let params = URLParams {
-        limit: 100,
-        offset: 0,
-    };
-    let result = Ergast::seasons(params).await;
-
-    match result {
-        Ok(seasons) => Ok((StatusCode::OK, Json(seasons))),
-        Err(_) => Err((StatusCode::BAD_REQUEST, Json("error"))),
-    }
 }
 
 // handler returns a JSON object from Ergast::race
@@ -109,6 +94,32 @@ pub async fn results_handler(
                     points: entity.points,
                     status: entity.status.clone(),
                     constructor: entity.constructor.name.clone(),
+                })
+                .collect();
+            let value = serde_json::to_value(response).unwrap();
+            Ok((StatusCode::OK, Json(value)))
+        }
+        Err(_) => Err((StatusCode::BAD_REQUEST, Json("error"))),
+    }
+}
+
+pub async fn seasons_handler() -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)>
+{
+    let params = URLParams {
+        limit: 100,
+        offset: 0,
+    };
+    let result = Ergast::seasons(params).await;
+
+    match result {
+        Ok(seasons) => {
+            let response: Vec<SeasonResponse> = seasons
+                .table
+                .seasons
+                .iter()
+                .map(|entity| SeasonResponse {
+                    season: entity.season.clone(),
+                    url: entity.url.clone(),
                 })
                 .collect();
             let value = serde_json::to_value(response).unwrap();

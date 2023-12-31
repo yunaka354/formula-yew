@@ -5,19 +5,22 @@ use yew_router::prelude::*;
 
 mod components;
 mod models;
-use components::{Home, Results};
+use components::{Races, Results, Seasons};
 
 #[derive(Clone, Routable, PartialEq)]
 pub enum Route {
+    #[at("/races")]
+    Races,
     #[at("/")]
-    Home,
+    Seasons,
     #[at("/results")]
     Results,
 }
 
 pub fn switch(route: Route) -> Html {
     match route {
-        Route::Home => html! { <Home /> },
+        Route::Races => html! { <Races /> },
+        Route::Seasons => html! { <Seasons /> },
         Route::Results => html! { <Results /> },
     }
 }
