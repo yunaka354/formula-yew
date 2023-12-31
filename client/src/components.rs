@@ -1,4 +1,4 @@
-use crate::models::{Race, RaceResult, Season};
+use crate::models::{Race, RaceResult, Season, Lap};
 use gloo_net::http::Request;
 use std::collections::HashMap;
 use yew::prelude::*;
@@ -57,8 +57,14 @@ pub fn seasons() -> Html {
     }
 }
 
-#[function_component(Results)]
-pub fn results() -> Html {
+#[derive(Properties, PartialEq)]
+pub struct DetailProps {
+    year: String,
+    round: String,
+}
+
+#[function_component(Detail)]
+pub fn detail() -> Html {
     let location = use_location().unwrap();
     // NOTE: location.query_str() returns a string with a leading "?"
     let query_string = location.query_str().replace("?", "");
@@ -67,8 +73,93 @@ pub fn results() -> Html {
 
     let year = query_params.get("year").cloned().unwrap_or_default();
     let round = query_params.get("round").cloned().unwrap_or_default();
-    let title = format!("Formula 1 {} Round {}", &year, &round);
+    let title = format!("Formula 1 {} Round {}", year, round);
 
+    html! {
+        <div>
+            <h1>{ title }</h1>
+            <Results year={year.clone()} round={round.clone()} />
+            <Laps year={year} round={round} />
+        </div>
+    }
+}
+
+#[function_component(Laps)]
+pub fn laps(props: &DetailProps) -> Html {
+    let year = props.year.clone();
+    let round = props.round.clone();
+    let laps = use_state(|| None);
+    {
+        let laps = laps.clone();
+        use_effect_with((), move |_| {
+            let laps = laps.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let url = format!(
+                    "http://localhost:3000/laps?year={}&round={}",
+                    year, round
+                );
+                let response: Vec<Lap> = Request::get(&url)
+                    .send()
+                    .await
+                    .unwrap()
+                    .json()
+                    .await
+                    .unwrap();
+                laps.set(Some(response));
+            });
+            || ()
+        });
+    }
+
+    html! {
+        <div>
+            {
+                match (*laps).clone() {
+                    Some(laps) => {
+                        html! {
+                            <>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>{ "Driver ID" }</th>
+                                            <th>{ "Lap" }</th>
+                                            <th>{ "Position" }</th>
+                                            <th>{ "Lap Time" }</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {
+                                            for laps.iter().map(|lap| {
+                                                html! {
+                                                    <tr>
+                                                        <td>{ lap.driver_id.clone() }</td>
+                                                        <td>{ lap.lap }</td>
+                                                        <td>{ lap.position }</td>
+                                                        <td>{ lap.time.clone() }</td>
+                                                    </tr>
+                                                }
+                                            })
+                                        }
+                                    </tbody>
+                                </table>
+                            </>
+                        }
+                    },
+                    None => {
+                        html! {
+                            <h1>{ "Loading..." }</h1>
+                        }
+                    }
+                }
+            }
+        </div>
+    }
+}
+
+#[function_component(Results)]
+pub fn results(props: &DetailProps) -> Html {
+    let year = props.year.clone();
+    let round = props.round.clone();
     let results = use_state(|| None);
     {
         let results = results.clone();
@@ -99,7 +190,6 @@ pub fn results() -> Html {
                     Some(results) => {
                         html! {
                             <>
-                                <h1>{ title }</h1>
                                 <table>
                                     <thead>
                                         <tr>

@@ -5,7 +5,7 @@ use yew_router::prelude::*;
 
 mod components;
 mod models;
-use components::{Races, Results, Seasons};
+use components::{Races, Seasons, Detail};
 
 #[derive(Clone, Routable, PartialEq)]
 pub enum Route {
@@ -21,7 +21,7 @@ pub fn switch(route: Route) -> Html {
     match route {
         Route::Races => html! { <Races /> },
         Route::Seasons => html! { <Seasons /> },
-        Route::Results => html! { <Results /> },
+        Route::Results => html! { <Detail /> },
     }
 }
 
