@@ -14,4 +14,5 @@ serde_urlencoded = "0.7.1"
 wasm-bindgen-futures = "0.4.39"
 wasm-logger = "0.2.0"
 yew = { version = "0.21.0", features = ["csr"] }
+yew-hooks = "0.3.0"
 yew-router = "0.18.0"

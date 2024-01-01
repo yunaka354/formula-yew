@@ -1,10 +1,11 @@
 use crate::{
-    models::{Lap, Race, RaceResult, Season},
+    models::{Lap, Race, RaceResult, Season, StandingsBarChart},
     utils,
 };
+use plotly::{Bar, Plot};
 use std::collections::HashMap;
 use yew::prelude::*;
-use yew_router::prelude::*;
+use yew_router::prelude::use_location;
 
 #[function_component(Seasons)]
 pub fn seasons() -> Html {
@@ -74,9 +75,41 @@ pub fn detail() -> Html {
     html! {
         <div>
             <h1>{ title }</h1>
+            <Standings year={year.clone()} round={round.clone()} />
             <Results year={year.clone()} round={round.clone()} />
-            <Laps year={year} round={round} />
+            <Laps year={year.clone()} round={round.clone()} />
         </div>
+    }
+}
+
+#[function_component(Standings)]
+pub fn standings(props: &DetailProps) -> Html {
+    let p = yew_hooks::use_async::<_, _, ()>({
+        let id = "plot-div";
+        let url = format!(
+            "http://localhost:3000/standings?year={}&round={}",
+            props.year, props.round
+        );
+
+        async move {
+            let response = utils::fetch_server::<StandingsBarChart>(&url).await;
+            let mut plot = Plot::new();
+            let trace = Bar::new(response.x, response.y);
+            plot.add_trace(trace);
+
+            let layout = plotly::Layout::new().title(plotly::common::Title::new("Standings"));
+            plot.set_layout(layout);
+            plotly::bindings::new_plot(id, &plot).await;
+            Ok(())
+        }
+    });
+
+    use_effect_with((), move |_| {
+        p.run();
+    });
+
+    html! {
+        <div id="plot-div"></div>
     }
 }
 

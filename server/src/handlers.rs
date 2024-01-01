@@ -4,7 +4,6 @@ use axum::extract::Query;
 use axum::{http::StatusCode, Json};
 use ergast_rust::api::{Path, URLParams};
 use ergast_rust::ergast::Ergast;
-use ergast_rust::models::{MRData, StandingTable};
 use serde_json::Value;
 
 // basic handler that responds with a static string
@@ -46,7 +45,7 @@ pub async fn races_handler(
 // basic handler that responds with a static string
 pub async fn standings_handler(
     round: Query<RoundQuery>,
-) -> Result<(StatusCode, Json<MRData<StandingTable>>), (StatusCode, Json<&'static str>)> {
+) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
     let path = Path {
         year: round.year,
         round: Some(round.round),
@@ -58,7 +57,11 @@ pub async fn standings_handler(
     let result = Ergast::standings(path, params).await;
 
     match result {
-        Ok(standings) => Ok((StatusCode::OK, Json(standings))),
+        Ok(standings) => {
+            let response = crate::models::convert_to_standings_responses(standings);
+            let value = serde_json::to_value(response).unwrap();
+            Ok((StatusCode::OK, Json(value)))
+        }
         Err(_) => Err((StatusCode::BAD_REQUEST, Json("error"))),
     }
 }

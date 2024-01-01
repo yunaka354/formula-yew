@@ -34,3 +34,9 @@ pub struct Lap {
     pub position: i32,
     pub time: String,
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StandingsBarChart {
+    pub x: Vec<String>,
+    pub y: Vec<usize>,
+}

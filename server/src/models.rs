@@ -1,4 +1,4 @@
-use ergast_rust::models::{MRData, RaceTable};
+use ergast_rust::models::{MRData, RaceTable, StandingTable};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -50,4 +50,22 @@ pub fn convert_to_lap_responses(data: MRData<RaceTable>) -> Vec<LapResponse> {
         }
     }
     vec
+}
+
+/// StandingsResponse provides a response for Plotly Bar Chart.
+#[derive(Deserialize, Serialize, Debug)]
+pub struct StandingsResponse {
+    pub x: Vec<String>,
+    pub y: Vec<i32>,
+}
+
+pub fn convert_to_standings_responses(data: MRData<StandingTable>) -> StandingsResponse {
+    let standings = data.table.standings_lists.get(0).unwrap();
+    let mut x = Vec::new();
+    let mut y = Vec::new();
+    for entity in standings.driver_standings.iter() {
+        x.push(entity.driver.code.clone().unwrap());
+        y.push(entity.points);
+    }
+    StandingsResponse { x, y }
 }
