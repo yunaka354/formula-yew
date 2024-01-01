@@ -6,7 +6,7 @@ use yew_router::prelude::*;
 mod components;
 mod models;
 mod utils;
-use components::{Detail, Races, Seasons};
+use components::{Detail, Header, Races, Seasons};
 
 #[derive(Clone, Routable, PartialEq)]
 pub enum Route {
@@ -29,9 +29,12 @@ pub fn switch(route: Route) -> Html {
 #[function_component(App)]
 pub fn app() -> Html {
     html! {
-        <BrowserRouter>
-            <Switch<Route> render={switch} />
-        </BrowserRouter>
+        <>
+            <Header />
+            <BrowserRouter>
+                <Switch<Route> render={switch} />
+            </BrowserRouter>
+        </>
     }
 }
 

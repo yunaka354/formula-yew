@@ -7,6 +7,19 @@ use std::collections::HashMap;
 use yew::prelude::*;
 use yew_router::prelude::use_location;
 
+#[function_component(Header)]
+pub fn header() -> Html {
+    html! {
+        <header class="header">
+            <nav class="navbar">
+                <h1 class="logo">
+                    <a href="/">{"Formula Yew"}</a>
+                </h1>
+            </nav>
+        </header>
+    }
+}
+
 #[function_component(Seasons)]
 pub fn seasons() -> Html {
     let seasons = use_state(|| None);
