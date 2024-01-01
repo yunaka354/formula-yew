@@ -10,9 +10,9 @@ use yew_router::prelude::use_location;
 #[function_component(Header)]
 pub fn header() -> Html {
     html! {
-        <header class="header">
+        <header class="bg-slate-900 text-white text-center p-4 shadow-md">
             <nav class="navbar">
-                <h1 class="logo">
+                <h1 class="text-xl font-semibold">
                     <a href="/">{"Formula Yew"}</a>
                 </h1>
             </nav>
@@ -48,7 +48,14 @@ pub fn seasons() -> Html {
                                     {
                                         for seasons.iter().map(|season| {
                                             html! {
-                                                <li><a href={ format!("./races?year={}", season.season.clone()) }>{ season.season.clone() }</a></li>
+                                                <li>
+                                                    <a
+                                                        href={ format!("./races?year={}", season.season.clone()) }
+                                                        class="text-blue-500 hover:text-blue-700"
+                                                    >
+                                                        { season.season.clone() }
+                                                    </a>
+                                                </li>
                                             }
                                         })
                                     }
@@ -308,7 +315,14 @@ pub fn races() -> Html {
                                                     <tr>
                                                         <td>{ race.season }</td>
                                                         <td>{ race.round }</td>
-                                                        <td><a href={format!("/results?year={}&round={}", race.season, race.round)}> { &race.race_name } </a></td>
+                                                        <td>
+                                                            <a
+                                                                href={format!("/results?year={}&round={}", race.season, race.round)}
+                                                                class="text-blue-500 hover:text-blue-700"
+                                                            >
+                                                                { &race.race_name }
+                                                            </a>
+                                                        </td>
                                                         <td>{ &race.circuit_name }</td>
                                                         <td>{ &race.date }</td>
                                                     </tr>
