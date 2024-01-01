@@ -1,7 +1,7 @@
 use yew::prelude::*;
 
-use crate::{models::Season, utils};
 use crate::components::Spinner;
+use crate::{models::Season, utils};
 
 #[function_component(Seasons)]
 pub fn seasons() -> Html {
