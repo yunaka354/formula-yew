@@ -74,7 +74,7 @@ pub fn seasons() -> Html {
     }
 }
 
-#[derive(Properties, PartialEq)]
+#[derive(Properties, PartialEq, Clone)]
 pub struct DetailProps {
     year: String,
     round: String,
@@ -104,19 +104,62 @@ pub fn detail() -> Html {
 
 #[function_component(Standings)]
 pub fn standings(props: &DetailProps) -> Html {
+    let props = props.clone();
+    let data = use_state(|| None);
+    
+    {
+        let data = data.clone();
+        use_effect_with((), move |_| {
+            let data = data.clone();
+            
+            wasm_bindgen_futures::spawn_local(async move {
+                let data = data.clone();
+                let url = format!(
+                    "http://localhost:3000/standings?year={}&round={}",
+                    props.year, props.round
+                );
+                let response = utils::fetch_server::<StandingsBarChart>(&url).await;
+                data.set(Some(response));
+            });
+        });
+    }
+
+    html! {
+        <>
+            {
+                match (*data).clone() {
+                    None => {
+                        html! {
+                            <Spinner />
+                        }
+                    },
+                    Some(data) => {
+                        html! {
+                            <Chart chart_data={data} />
+                        }
+                    }
+                }
+            }
+        </>
+    }
+}
+
+#[derive(Properties, PartialEq, Clone)]
+pub struct ChartProps {
+    chart_data: StandingsBarChart,
+}
+
+#[function_component(Chart)]
+pub fn chart(props: &ChartProps) -> Html {
+    let props = props.clone();
     let p = yew_hooks::use_async::<_, _, ()>({
         let id = "plot-div";
-        let url = format!(
-            "http://localhost:3000/standings?year={}&round={}",
-            props.year, props.round
-        );
 
         async move {
-            let response = utils::fetch_server::<StandingsBarChart>(&url).await;
             let mut plot = Plot::new();
-            let trace = Bar::new(response.x, response.y);
+            let trace = Bar::new(props.chart_data.x.clone(), props.chart_data.y.clone());
             plot.add_trace(trace);
-
+            
             let layout = plotly::Layout::new().title(plotly::common::Title::new("Standings"));
             plot.set_layout(layout);
             plotly::bindings::new_plot(id, &plot).await;
@@ -124,13 +167,14 @@ pub fn standings(props: &DetailProps) -> Html {
         }
     });
 
-    use_effect_with((), move |_| {
+    use_effect_with(p.clone(), move |_| {
         p.run();
     });
 
     html! {
         <div id="plot-div"></div>
     }
+
 }
 
 #[function_component(Laps)]
@@ -187,7 +231,7 @@ pub fn laps(props: &DetailProps) -> Html {
                     },
                     None => {
                         html! {
-                            <h1>{ "Loading..." }</h1>
+                            <Spinner />
                         }
                     }
                 }
@@ -257,7 +301,7 @@ pub fn results(props: &DetailProps) -> Html {
                     },
                     None => {
                         html! {
-                            <h1>{ "Loading..." }</h1>
+                            <Spinner />
                         }
                     }
                 }
@@ -341,6 +385,15 @@ pub fn races() -> Html {
                     }
                 }
             }
+        </div>
+    }
+}
+
+#[function_component(Spinner)]
+fn spinner() -> Html {
+    html! {
+        <div class="flex justify-center items-center">
+            <div class="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
         </div>
     }
 }
