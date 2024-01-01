@@ -1,5 +1,6 @@
 use crate::models::Race;
 use crate::utils;
+use crate::components::Spinner;
 use std::collections::HashMap;
 use yew::prelude::*;
 use yew_router::prelude::*;
@@ -74,7 +75,7 @@ pub fn races() -> Html {
                     },
                     None => {
                         html! {
-                            <h1>{ "Loading..." }</h1>
+                            <Spinner />
                         }
                     }
                 }

@@ -1,6 +1,7 @@
 use yew::prelude::*;
 
 use crate::{models::Season, utils};
+use crate::components::Spinner;
 
 #[function_component(Seasons)]
 pub fn seasons() -> Html {
@@ -47,7 +48,7 @@ pub fn seasons() -> Html {
                     },
                     None => {
                         html! {
-                            <h1>{ "Loading..." }</h1>
+                            <Spinner />
                         }
                     }
                 }
