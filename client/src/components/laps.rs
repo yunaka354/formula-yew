@@ -1,3 +1,5 @@
+use crate::components::table::Table;
+use crate::components::table::TableContents;
 use crate::components::DetailProps;
 use crate::components::Spinner;
 use crate::models::Lap;
@@ -27,32 +29,10 @@ pub fn laps(props: &DetailProps) -> Html {
             {
                 match (*laps).clone() {
                     Some(laps) => {
+                        let contents = TableContents::convert_laps(laps);
                         html! {
                             <>
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>{ "Driver ID" }</th>
-                                            <th>{ "Lap" }</th>
-                                            <th>{ "Position" }</th>
-                                            <th>{ "Lap Time" }</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {
-                                            for laps.iter().map(|lap| {
-                                                html! {
-                                                    <tr>
-                                                        <td>{ lap.driver_id.clone() }</td>
-                                                        <td>{ lap.lap }</td>
-                                                        <td>{ lap.position }</td>
-                                                        <td>{ lap.time.clone() }</td>
-                                                    </tr>
-                                                }
-                                            })
-                                        }
-                                    </tbody>
-                                </table>
+                                <Table contents={contents} />
                             </>
                         }
                     },

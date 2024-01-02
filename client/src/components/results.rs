@@ -1,3 +1,5 @@
+use crate::components::table::Table;
+use crate::components::table::TableContents;
 use crate::components::DetailProps;
 use crate::components::Spinner;
 use crate::models::RaceResult;
@@ -30,36 +32,10 @@ pub fn results(props: &DetailProps) -> Html {
             {
                 match (*results).clone() {
                     Some(results) => {
+                        let contents = TableContents::convert_race_result(results);
                         html! {
                             <>
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>{ "Position" }</th>
-                                            <th>{ "Code" }</th>
-                                            <th>{ "Driver" }</th>
-                                            <th>{ "Team" }</th>
-                                            <th>{ "Points" }</th>
-                                            <th>{ "Status" }</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {
-                                            for results.iter().map(|result| {
-                                                html! {
-                                                    <tr>
-                                                        <td>{ result.position }</td>
-                                                        <td>{ result.code.clone() }</td>
-                                                        <td>{ format!("{} {}", result.given_name.clone(), result.family_name.clone()) }</td>
-                                                        <td>{ result.constructor.clone() }</td>
-                                                        <td>{ result.points }</td>
-                                                        <td>{ result.status.clone() }</td>
-                                                    </tr>
-                                                }
-                                            })
-                                        }
-                                    </tbody>
-                                </table>
+                                <Table contents={contents} />
                             </>
                         }
                     },

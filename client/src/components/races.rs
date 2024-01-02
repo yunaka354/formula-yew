@@ -1,3 +1,4 @@
+use crate::components::table::{Table, TableContents};
 use crate::components::Spinner;
 use crate::models::Race;
 use crate::utils;
@@ -34,42 +35,11 @@ pub fn races() -> Html {
             {
                 match (*races).clone() {
                     Some(races) => {
+                        let contents = TableContents::convert_races(races);
                         html! {
                             <>
                                 <h1>{ title }</h1>
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>{ "Season" }</th>
-                                            <th>{ "Round" }</th>
-                                            <th>{ "Title" }</th>
-                                            <th>{ "Circuit" }</th>
-                                            <th>{ "Date" }</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {
-                                            for races.iter().map(|race| {
-                                                html! {
-                                                    <tr>
-                                                        <td>{ race.season }</td>
-                                                        <td>{ race.round }</td>
-                                                        <td>
-                                                            <a
-                                                                href={format!("/results?year={}&round={}", race.season, race.round)}
-                                                                class="text-blue-500 hover:text-blue-700"
-                                                            >
-                                                                { &race.race_name }
-                                                            </a>
-                                                        </td>
-                                                        <td>{ &race.circuit_name }</td>
-                                                        <td>{ &race.date }</td>
-                                                    </tr>
-                                                }
-                                            })
-                                        }
-                                    </tbody>
-                                </table>
+                                <Table contents={contents} />
                             </>
                         }
                     },

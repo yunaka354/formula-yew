@@ -8,6 +8,7 @@ mod results;
 mod seasons;
 mod spinner;
 mod standings;
+mod table;
 
 pub use chart::Chart;
 pub use detail::Detail;
@@ -19,3 +20,4 @@ pub use results::Results;
 pub use seasons::Seasons;
 pub use spinner::Spinner;
 pub use standings::Standings;
+pub use table::{ColumnHeader, TableRow};
