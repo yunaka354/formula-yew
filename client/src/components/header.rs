@@ -7,7 +7,7 @@ pub fn header() -> Html {
             bg-slate-900
             text-white
             text-center
-            p-4
+            p-2
             shadow-md
             sticky
             top-0
@@ -16,6 +16,9 @@ pub fn header() -> Html {
             justify-start
             items-center"
         >
+            <a href="/">
+                <img class="website-icon" src="static/icon.png" />
+            </a>
             <div class="px-4">
                 <h1 class="text-xl font-semibold">
                     <a href="/">{"Formula Yew"}</a>
