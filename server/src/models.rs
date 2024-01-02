@@ -1,6 +1,8 @@
 use ergast_rust::models::{MRData, RaceTable, StandingTable};
 use serde::{Deserialize, Serialize};
 
+use crate::color_pallet::ColorPallet;
+
 #[derive(Deserialize, Serialize, Debug)]
 pub struct RaceResponse {
     pub season: i32,
@@ -57,15 +59,20 @@ pub fn convert_to_lap_responses(data: MRData<RaceTable>) -> Vec<LapResponse> {
 pub struct StandingsResponse {
     pub x: Vec<String>,
     pub y: Vec<i32>,
+    pub color: Vec<String>,
 }
 
 pub fn convert_to_standings_responses(data: MRData<StandingTable>) -> StandingsResponse {
     let standings = data.table.standings_lists.get(0).unwrap();
     let mut x = Vec::new();
     let mut y = Vec::new();
+    let mut color = Vec::new();
     for entity in standings.driver_standings.iter() {
         x.push(entity.driver.code.clone().unwrap());
         y.push(entity.points);
+        color.push(ColorPallet::get_color(
+            &entity.constructors.get(0).unwrap().name,
+        ));
     }
-    StandingsResponse { x, y }
+    StandingsResponse { x, y, color }
 }

@@ -6,6 +6,7 @@ mod handlers;
 use handlers::{laps_handler, races_handler, root, seasons_handler, standings_handler};
 
 use crate::handlers::results_handler;
+mod color_pallet;
 mod models;
 mod queries;
 

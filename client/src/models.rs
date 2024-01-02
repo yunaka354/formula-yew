@@ -39,4 +39,5 @@ pub struct Lap {
 pub struct StandingsBarChart {
     pub x: Vec<String>,
     pub y: Vec<usize>,
+    pub color: Vec<String>,
 }

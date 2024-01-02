@@ -1,5 +1,5 @@
 use crate::components::props::ChartProps;
-use plotly::{Bar, Plot};
+use plotly::{common::Marker, Bar, Plot};
 use yew::prelude::*;
 
 #[function_component(Chart)]
@@ -10,10 +10,17 @@ pub fn chart(props: &ChartProps) -> Html {
 
         async move {
             let mut plot = Plot::new();
-            let trace = Bar::new(props.chart_data.x.clone(), props.chart_data.y.clone());
-            plot.add_trace(trace);
-
-            let layout = plotly::Layout::new().title(plotly::common::Title::new("Standings"));
+            let x = props.chart_data.x.clone();
+            let y = props.chart_data.y.clone();
+            let colors = props.chart_data.color.clone();
+            for (i, key) in x.iter().enumerate() {
+                let bar = Bar::new(vec![key.clone()], vec![y[i]]);
+                let bar = bar.marker(Marker::new().color(colors[i].clone()));
+                plot.add_trace(bar);
+            }
+            let layout = plotly::Layout::new()
+                .title(plotly::common::Title::new("Standings"))
+                .show_legend(false);
             plot.set_layout(layout);
             plotly::bindings::new_plot(id, &plot).await;
             Ok(())
