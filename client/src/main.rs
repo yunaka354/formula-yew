@@ -32,7 +32,7 @@ pub fn app() -> Html {
         <>
             <Header />
             <div class={"wrapper flex bg-gray-100 justify-center items-center min-h-screen p-10"}>
-                <div class={"container bg-white rounded-lg shadow p-6 max-w-7xl"}>
+                <div class={"container mx-auto bg-white rounded-lg shadow p-6 max-w-7xl"}>
                     <BrowserRouter>
                         <Switch<Route> render={switch} />
                     </BrowserRouter>
