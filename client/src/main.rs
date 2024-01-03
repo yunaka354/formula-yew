@@ -31,9 +31,13 @@ pub fn app() -> Html {
     html! {
         <>
             <Header />
-            <BrowserRouter>
-                <Switch<Route> render={switch} />
-            </BrowserRouter>
+            <div class={"wrapper flex bg-gray-100 justify-center items-center min-h-screen p-10"}>
+                <div class={"container bg-white rounded-lg shadow p-6 max-w-7xl"}>
+                    <BrowserRouter>
+                        <Switch<Route> render={switch} />
+                    </BrowserRouter>
+                </div>            
+            </div>
         </>
     }
 }
