@@ -1,7 +1,7 @@
-use crate::components::Chart;
 use crate::components::DetailProps;
 use crate::components::Spinner;
-use crate::models::StandingsBarChart;
+use crate::components::StandingChart;
+use crate::models::ChartData;
 use crate::utils;
 use yew::prelude::*;
 
@@ -21,7 +21,7 @@ pub fn standings(props: &DetailProps) -> Html {
                     "http://localhost:3000/standings?year={}&round={}",
                     props.year, props.round
                 );
-                let response = utils::fetch_server::<StandingsBarChart>(&url).await;
+                let response = utils::fetch_server::<ChartData<String, i32>>(&url).await;
                 data.set(Some(response));
             });
         });
@@ -38,7 +38,7 @@ pub fn standings(props: &DetailProps) -> Html {
                     },
                     Some(data) => {
                         html! {
-                            <Chart chart_data={data} />
+                            <StandingChart chart_data={data} plot_id={"plot-standing"} />
                         }
                     }
                 }

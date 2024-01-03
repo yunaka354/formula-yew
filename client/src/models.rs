@@ -36,8 +36,8 @@ pub struct Lap {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct StandingsBarChart {
-    pub x: Vec<String>,
-    pub y: Vec<usize>,
-    pub color: Vec<String>,
+pub struct ChartData<T, U> {
+    pub x: Vec<T>,
+    pub y: Vec<U>,
+    pub color: Option<Vec<String>>,
 }

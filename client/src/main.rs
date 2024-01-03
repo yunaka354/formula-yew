@@ -36,7 +36,7 @@ pub fn app() -> Html {
                     <BrowserRouter>
                         <Switch<Route> render={switch} />
                     </BrowserRouter>
-                </div>            
+                </div>
             </div>
         </>
     }

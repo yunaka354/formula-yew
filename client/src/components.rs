@@ -1,4 +1,4 @@
-mod chart;
+mod charts;
 mod detail;
 mod header;
 mod laps;
@@ -10,7 +10,7 @@ mod spinner;
 mod standings;
 mod table;
 
-pub use chart::Chart;
+pub use charts::{LapChart, StandingChart};
 pub use detail::Detail;
 pub use header::Header;
 pub use laps::Laps;

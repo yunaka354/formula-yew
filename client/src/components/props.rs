@@ -1,5 +1,5 @@
 use crate::components::table::TableContents;
-use crate::models::StandingsBarChart;
+use crate::models::ChartData;
 
 use yew::prelude::*;
 
@@ -12,8 +12,13 @@ pub struct DetailProps {
 }
 
 #[derive(Properties, PartialEq, Clone)]
-pub struct ChartProps {
-    pub chart_data: StandingsBarChart,
+pub struct ChartProps<T, U>
+where
+    T: Clone + PartialEq,
+    U: Clone + PartialEq,
+{
+    pub chart_data: ChartData<T, U>,
+    pub plot_id: String,
 }
 
 #[derive(Clone, PartialEq, Properties)]
