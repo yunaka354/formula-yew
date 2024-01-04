@@ -41,3 +41,11 @@ pub struct ChartData<T, U> {
     pub y: Vec<U>,
     pub color: Option<Vec<String>>,
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LapLineChartData {
+    pub driver_id: String,
+    pub laps: Vec<i32>,
+    pub laptime: Vec<f64>,
+    pub color: String,
+}

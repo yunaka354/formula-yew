@@ -1,7 +1,7 @@
 use yew::prelude::*;
 
 use crate::components::props::{ColumnHeaderProps, TableProps, TableRowProps};
-use crate::models::{Lap, Race, RaceResult};
+use crate::models::{Race, RaceResult};
 
 #[derive(Clone, PartialEq, Properties)]
 pub struct TableContents {
@@ -89,30 +89,6 @@ impl TableContents {
                 .iter()
                 .map(|race_result| html! {race_result.status.clone()})
                 .collect(),
-        });
-        Self { contents }
-    }
-
-    pub fn convert_laps(laps: Vec<Lap>) -> Self {
-        let mut contents = Vec::new();
-        contents.push(TableColumn {
-            headers: "Driver ID".to_string(),
-            rows: laps
-                .iter()
-                .map(|lap| html! {lap.driver_id.clone()})
-                .collect(),
-        });
-        contents.push(TableColumn {
-            headers: "Lap".to_string(),
-            rows: laps.iter().map(|lap| html! {lap.lap}).collect(),
-        });
-        contents.push(TableColumn {
-            headers: "Position".to_string(),
-            rows: laps.iter().map(|lap| html! {lap.position}).collect(),
-        });
-        contents.push(TableColumn {
-            headers: "Lap Time".to_string(),
-            rows: laps.iter().map(|lap| html! {lap.time.clone()}).collect(),
         });
         Self { contents }
     }

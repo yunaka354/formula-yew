@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use ergast_rust::models::{MRData, RaceTable, StandingTable};
 use serde::{Deserialize, Serialize};
 
@@ -82,20 +84,48 @@ pub fn convert_to_standings_responses(data: MRData<StandingTable>) -> ChartRespo
     }
 }
 
-pub fn convert_to_lap_chart_responses(data: MRData<RaceTable>) -> ChartResponse<i32, f64> {
-    let laps = data.table.races.get(0).unwrap().laps.as_ref().unwrap();
-    let mut x = Vec::new();
-    let mut y = Vec::new();
-    for lap in laps {
-        for timing in &lap.timings {
-            if timing.driver_id == "tsunoda" {
-                let converted_time = convert_lap_time_text_to_f64(&timing.time).unwrap();
-                x.push(lap.number);
-                y.push(converted_time);
-            }
+#[derive(Deserialize, Serialize, Debug)]
+pub struct LapLineChartData {
+    pub driver_id: String,
+    pub laps: Vec<i32>,
+    pub laptime: Vec<f64>,
+    pub color: String,
+}
+
+impl LapLineChartData {
+    pub fn new(driver_id: String) -> Self {
+        Self {
+            driver_id: driver_id.clone(),
+            laps: Vec::new(),
+            laptime: Vec::new(),
+            color: ColorPallet::get_color(&driver_id).to_string(),
         }
     }
-    ChartResponse { x, y, color: None }
+}
+
+pub fn convert_to_lap_chart_responses(data: MRData<RaceTable>) -> Vec<LapLineChartData> {
+    let laps = data.table.races.get(0).unwrap().laps.as_ref().unwrap();
+    let mut map = HashMap::new();
+    for lap in laps {
+        for timing in &lap.timings {
+            let driver_id = timing.driver_id.clone();
+            let time = timing.time.clone();
+            let lap = lap.number;
+            let entry = map
+                .entry(driver_id.clone())
+                .or_insert(LapLineChartData::new(driver_id));
+            entry.laps.push(lap);
+            entry
+                .laptime
+                .push(convert_lap_time_text_to_f64(&time).unwrap());
+        }
+    }
+    let mut vec = map
+        .into_iter()
+        .map(|(_, v)| v)
+        .collect::<Vec<LapLineChartData>>();
+    vec.sort_by(|a, b| a.driver_id.partial_cmp(&b.driver_id).unwrap());
+    vec
 }
 
 // convert text formatted like "m:ss.SSS" to f64

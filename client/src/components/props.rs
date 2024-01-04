@@ -1,5 +1,5 @@
 use crate::components::table::TableContents;
-use crate::models::ChartData;
+use crate::models::{ChartData, LapLineChartData};
 
 use yew::prelude::*;
 
@@ -18,6 +18,12 @@ where
     U: Clone + PartialEq,
 {
     pub chart_data: ChartData<T, U>,
+    pub plot_id: String,
+}
+
+#[derive(Properties, PartialEq, Clone)]
+pub struct LapLineChartProps {
+    pub chart_data: Vec<LapLineChartData>,
     pub plot_id: String,
 }
 

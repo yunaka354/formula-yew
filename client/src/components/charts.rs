@@ -1,8 +1,9 @@
 use crate::components::props::ChartProps;
-use plotly::color::Rgb;
 use plotly::common::{Line, Marker};
 use plotly::{Bar, Plot, Scatter};
 use yew::prelude::*;
+
+use crate::components::props::LapLineChartProps;
 
 #[function_component(StandingChart)]
 pub fn standing_chart(props: &ChartProps<String, i32>) -> Html {
@@ -38,23 +39,27 @@ pub fn standing_chart(props: &ChartProps<String, i32>) -> Html {
 }
 
 #[function_component(LapChart)]
-pub fn lap_chart(props: &ChartProps<i32, f64>) -> Html {
+pub fn lap_chart(props: &LapLineChartProps) -> Html {
     let props = props.clone();
+    let chart_id = props.plot_id.clone();
     let p = yew_hooks::use_async::<_, _, ()>({
-        let id = "plot-div";
-
         async move {
             let mut plot = Plot::new();
-            let x = props.chart_data.x.clone();
-            let y = props.chart_data.y.clone();
-            let bar = Scatter::new(x, y)
-                .mode(plotly::common::Mode::Lines)
-                .name("TSU")
-                .line(Line::new().color(Rgb::new(55, 128, 191)).width(3.0));
-            plot.add_trace(bar);
+
+            for line in props.chart_data.iter() {
+                let x = line.laps.clone();
+                let y = line.laptime.clone();
+                let color = line.color.clone();
+                let bar = Scatter::new(x, y)
+                    .mode(plotly::common::Mode::Lines)
+                    .name(line.driver_id.clone())
+                    .line(Line::new().color(color).width(2.0));
+                plot.add_trace(bar);
+            }
+
             let layout = plotly::Layout::new().title(plotly::common::Title::new("Lap Times"));
             plot.set_layout(layout);
-            plotly::bindings::new_plot(id, &plot).await;
+            plotly::bindings::new_plot(&props.plot_id, &plot).await;
             Ok(())
         }
     });
@@ -64,6 +69,6 @@ pub fn lap_chart(props: &ChartProps<i32, f64>) -> Html {
     });
 
     html! {
-        <div id="plot-div"></div>
+        <div id={chart_id.clone()}></div>
     }
 }

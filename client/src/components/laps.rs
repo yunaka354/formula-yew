@@ -1,7 +1,7 @@
 use crate::components::DetailProps;
 use crate::components::LapChart;
 use crate::components::Spinner;
-use crate::models::ChartData;
+use crate::models::LapLineChartData;
 use crate::utils;
 use yew::prelude::*;
 
@@ -21,7 +21,7 @@ pub fn laps(props: &DetailProps) -> Html {
                     "http://localhost:3000/laps-chart?year={}&round={}",
                     props.year, props.round
                 );
-                let response = utils::fetch_server::<ChartData<i32, f64>>(&url).await;
+                let response = utils::fetch_server::<Vec<LapLineChartData>>(&url).await;
                 data.set(Some(response));
             });
         });
