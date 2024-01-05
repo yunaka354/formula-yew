@@ -1,4 +1,4 @@
-use crate::components::{Laps, Results, Standings};
+use crate::components::{Laps, Results, Standings, laps::LapsBox};
 use std::collections::HashMap;
 use yew::prelude::*;
 use yew_router::prelude::*;
@@ -22,6 +22,7 @@ pub fn detail() -> Html {
             </div>
             <Standings year={year.clone()} round={round.clone()} />
             <Laps year={year.clone()} round={round.clone()} />
+            <LapsBox year={year.clone()} round={round.clone()} />
             <Results year={year.clone()} round={round.clone()} />
         </>
     }

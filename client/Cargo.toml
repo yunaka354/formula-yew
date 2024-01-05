@@ -9,6 +9,8 @@ edition = "2021"
 gloo-net = "0.5.0"
 log = "0.4.20"
 plotly = { version = "0.8.4", features = ["wasm"] }
+rand = "0.8.5"
+rand_distr = "0.4.3"
 serde = { version = "1.0.193", features = ["derive"] }
 serde_urlencoded = "0.7.1"
 wasm-bindgen-futures = "0.4.39"
