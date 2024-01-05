@@ -178,3 +178,26 @@ pub async fn laps_chart_handler(
         Err(_) => Err((StatusCode::BAD_REQUEST, Json("error"))),
     }
 }
+
+pub async fn pitstops_handler(
+    round: Query<RoundQuery>,
+) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
+    let path = Path {
+        year: round.year,
+        round: Some(round.round),
+    };
+    let params = URLParams {
+        limit: 2000,
+        offset: 0,
+    };
+    let result = Ergast::pitstops(path, params).await;
+
+    match result {
+        Ok(pitstops) => {
+            let response = crate::models::convert_to_pit_stop_responses(pitstops);
+            let value = serde_json::to_value(response).unwrap();
+            Ok((StatusCode::OK, Json(value)))
+        }
+        Err(_) => Err((StatusCode::BAD_REQUEST, Json("error"))),
+    }
+}

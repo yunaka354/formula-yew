@@ -7,6 +7,8 @@ use handlers::{
     laps_chart_handler, laps_handler, races_handler, results_handler, root, seasons_handler,
     standings_handler,
 };
+
+use crate::handlers::pitstops_handler;
 mod color_pallet;
 mod models;
 mod queries;
@@ -33,6 +35,7 @@ async fn main() {
         .route("/results", get(results_handler))
         .route("/laps", get(laps_handler))
         .route("/laps-chart", get(laps_chart_handler))
+        .route("/pitstops", get(pitstops_handler))
         .layer(cors);
 
     // run our app with hyper, listening globally on port 3000

@@ -157,3 +157,25 @@ pub fn convert_lap_time_text_to_f64(lap_time: &str) -> Result<f64, &str> {
 
     Ok(minutes * 60.0 + seconds + milliseconds)
 }
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct PitstopResponse {
+    pub driver_id: String,
+    pub lap: i32,
+    pub duration: f64,
+    pub stop: i32,
+}
+
+pub fn convert_to_pit_stop_responses(data: MRData<RaceTable>) -> Vec<PitstopResponse> {
+    let pitstops = data.table.races.get(0).unwrap().pitstops.as_ref().unwrap();
+    let vec = pitstops
+        .iter()
+        .map(|pitstop| PitstopResponse {
+            driver_id: pitstop.driver_id.clone(),
+            lap: pitstop.lap,
+            duration: pitstop.duration.parse().unwrap_or_default(),
+            stop: pitstop.stop,
+        })
+        .collect::<Vec<PitstopResponse>>();
+    vec
+}
