@@ -1,7 +1,7 @@
 use crate::components::props::ChartProps;
+use plotly::box_plot::BoxPoints;
 use plotly::common::{Line, Marker};
 use plotly::{Bar, Plot, Scatter, BoxPlot};
-use rand_distr::{Uniform, Distribution};
 use yew::prelude::*;
 
 use crate::components::props::LapLineChartProps;
@@ -75,27 +75,26 @@ pub fn lap_chart(props: &LapLineChartProps) -> Html {
 }
 
 #[function_component(LapBoxChart)]
-pub fn lap_box_chart() -> Html {
-    let chart_id = "lap-box-chart";
+pub fn lap_box_chart(props: &LapLineChartProps) -> Html {
+    let props = props.clone();
+    let chart_id = props.plot_id.clone();
     let p = yew_hooks::use_async::<_, _, ()>({
         async move {
-            let mut rng = rand::thread_rng();
-            let uniform1 = Uniform::new(0.0, 1.0);
-            let n = 50;
             let mut plot = Plot::new();
-        
-            for _ in 0..20 {
-                let mut y = Vec::with_capacity(n);
-                for _ in 0..n {
-                    y.push(uniform1.sample(&mut rng));
-                }
-                let trace = BoxPlot::<f64, f64>::new(y);
+
+            for line in props.chart_data.iter() {
+                let y = line.laptime.clone();
+                let color = line.color.clone();
+                let trace = BoxPlot::<f64, f64>::new(y)
+                    .name(line.driver_id.clone())
+                    .marker(Marker::new().color(color))
+                    .box_points(BoxPoints::False);
                 plot.add_trace(trace);
             }
 
             let layout = plotly::Layout::new().title(plotly::common::Title::new("Lap Time Box Plot"));
             plot.set_layout(layout);
-            plotly::bindings::new_plot(chart_id, &plot).await;
+            plotly::bindings::new_plot(&props.plot_id, &plot).await;
             Ok(())
         }
     });
@@ -105,6 +104,6 @@ pub fn lap_box_chart() -> Html {
     });
 
     html! {
-        <div id={chart_id}></div>
+        <div id={chart_id.clone()}></div>
     }
 }

@@ -79,9 +79,9 @@ pub fn laps_box(props: &DetailProps) -> Html {
                             <Spinner />
                         }
                     },
-                    Some(_data) => {
+                    Some(data) => {
                         html! {
-                            <LapBoxChart />
+                            <LapBoxChart chart_data={data} plot_id={"plot-lap-box"}/>
                         }
                     }
                 }
