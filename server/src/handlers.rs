@@ -1,6 +1,7 @@
 use crate::models::{RaceResponse, ResultResponse, SeasonResponse};
 use crate::queries::{RoundQuery, YearQuery};
 use axum::extract::Query;
+use axum::response::IntoResponse;
 use axum::{http::StatusCode, Json};
 use ergast_rust::api::{Path, URLParams};
 use ergast_rust::ergast::Ergast;
@@ -131,6 +132,11 @@ pub async fn seasons_handler() -> Result<(StatusCode, Json<Value>), (StatusCode,
         }
         Err(_) => Err((StatusCode::BAD_REQUEST, Json("error"))),
     }
+}
+
+pub async fn seasons_post() -> impl IntoResponse {
+    let _ = crate::db::db_models::Season::post().await;
+    (StatusCode::OK, Json("ok"))
 }
 
 pub async fn laps_handler(

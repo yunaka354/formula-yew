@@ -8,10 +8,11 @@ use handlers::{
     standings_handler,
 };
 
-use crate::handlers::pitstops_handler;
+use crate::handlers::{pitstops_handler, seasons_post};
 mod color_pallet;
 mod models;
 mod queries;
+mod db;
 
 #[tokio::main]
 async fn main() {
@@ -30,7 +31,7 @@ async fn main() {
     let app = Router::new()
         .route("/", get(root))
         .route("/standings", get(standings_handler))
-        .route("/seasons", get(seasons_handler))
+        .route("/seasons", get(seasons_handler).post(seasons_post))
         .route("/races", get(races_handler))
         .route("/results", get(results_handler))
         .route("/laps", get(laps_handler))
