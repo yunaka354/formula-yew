@@ -1,7 +1,7 @@
-use diesel::prelude::*;
+use diesel::{prelude::*, result::Error};
 use std::time::SystemTime;
 use ergast_rust::{ergast::Ergast, api::URLParams};
-use crate::db::connection::establish_connection;
+use crate::{db::connection::establish_connection, models::SeasonResponse};
 
 #[derive(Queryable, Selectable, Debug)]
 #[diesel(table_name = crate::db::schema::seasons)]
@@ -44,6 +44,44 @@ impl Season {
             
             if let Err(e) = result {
                 println!("Error inserting season {}: {}", season.season, e);
+            }
+        }
+    }
+
+    pub fn is_exist() -> bool {
+        use crate::db::schema::seasons::dsl::*;
+
+        let mut connection = establish_connection();
+        let results = seasons.load::<Season>(&mut connection);
+
+        match results {
+            Ok(s) => !s.is_empty(),
+            Err(e) => {
+                println!("Error loading seasons: {}", e);
+                false
+            }
+        }
+    }
+
+    pub fn generate_response() -> Result<Vec<SeasonResponse>, Error> {
+        use crate::db::schema::seasons::dsl::*;
+
+        let mut connection = establish_connection();
+        let results = seasons.load::<Season>(&mut connection);
+
+        match results {
+            Ok(s) => {
+                let v = s.iter()
+                .map(|s| SeasonResponse {
+                    season: s.season,
+                    url: s.url.clone(),
+                })
+                .collect();
+                Ok(v)
+            },
+            Err(e) => {
+                println!("Error loading seasons: {}", e);
+                Err(e)
             }
         }
     }

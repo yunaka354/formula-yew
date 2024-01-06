@@ -1,5 +1,5 @@
-use crate::models::{RaceResponse, ResultResponse, SeasonResponse};
-use crate::queries::{RoundQuery, YearQuery};
+use crate::models::{RaceResponse, ResultResponse};
+use crate::queries::{RoundQuery, YearQuery};use crate::db::db_models;
 use axum::extract::Query;
 use axum::response::IntoResponse;
 use axum::{http::StatusCode, Json};
@@ -109,25 +109,18 @@ pub async fn results_handler(
 
 pub async fn seasons_handler() -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)>
 {
-    let params = URLParams {
-        limit: 100,
-        offset: 0,
-    };
-    let result = Ergast::seasons(params).await;
+    // check if season data is already in the database
+    if !db_models::Season::is_exist() {
+        println!("Season data is not in the database. Fetch from Ergast API.");
+        // if not, fetch season data from Ergast API and insert it into the database
+        db_models::Season::post().await;
+    }
+
+    let result = db_models::Season::generate_response();
 
     match result {
         Ok(seasons) => {
-            let mut response: Vec<SeasonResponse> = seasons
-                .table
-                .seasons
-                .iter()
-                .map(|entity| SeasonResponse {
-                    season: entity.season.clone(),
-                    url: entity.url.clone(),
-                })
-                .collect();
-            response.reverse();
-            let value = serde_json::to_value(response).unwrap();
+            let value = serde_json::to_value(seasons).unwrap();
             Ok((StatusCode::OK, Json(value)))
         }
         Err(_) => Err((StatusCode::BAD_REQUEST, Json("error"))),
