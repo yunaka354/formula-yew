@@ -188,6 +188,14 @@ pub struct DriverResponse {
     pub code: Option<String>,
     pub given_name: String, 
     pub family_name: String,
-    pub date_of_birth: String,
+    pub date_of_birth: NaiveDate,
+    pub nationality: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ConstructorResponse {
+    pub id: String,
+    pub url: String,
+    pub name: String,
     pub nationality: String,
 }

@@ -198,3 +198,14 @@ pub async fn drivers_post() -> impl IntoResponse {
     let _ = crate::db::db_models::Driver::post().await;
     (StatusCode::OK, Json("ok"))
 }
+
+pub async fn constructors_get() -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
+    let result = db_models::Constructor::generate_response();
+    let value = serde_json::to_value(result).unwrap();
+    Ok((StatusCode::OK, Json(value)))
+}
+
+pub async fn constructors_post() -> impl IntoResponse {
+    let _ = crate::db::db_models::Constructor::post().await;
+    (StatusCode::OK, Json("ok"))
+}

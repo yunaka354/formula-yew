@@ -1,6 +1,6 @@
 use crate::{
     db::connection::establish_connection,
-    models::{RaceResponse, SeasonResponse, DriverResponse},
+    models::{RaceResponse, SeasonResponse, DriverResponse, ConstructorResponse},
 };
 use chrono::{NaiveDate, NaiveTime};
 use diesel::prelude::*;
@@ -225,6 +225,17 @@ pub struct Driver {
 }
 
 impl Driver {
+
+    pub fn get() -> Vec<Driver> {
+        use crate::db::schema::drivers;
+        let mut connection = establish_connection();
+        drivers::table
+            .load::<Driver>(&mut connection)
+            .expect("loading error")
+            .into_iter()
+            .collect::<Vec<Driver>>()
+    }
+
     pub async fn post() -> () {
         use crate::db::schema::drivers;
 
@@ -268,6 +279,14 @@ impl Driver {
         }
     }
 
+    pub fn is_exist() -> bool {
+        let results = Driver::get();
+        if results.is_empty() {
+            return false;
+        }
+        true
+    }
+
     pub fn generate_response() -> Vec<DriverResponse> {
         use crate::db::schema::drivers::dsl::*;
 
@@ -282,7 +301,7 @@ impl Driver {
                     code: d.code,
                     given_name: d.given_name,
                     family_name: d.family_name,
-                    date_of_birth: d.date_of_birth.to_string(),
+                    date_of_birth: d.date_of_birth,
                     nationality: d.nationality,
                 }).collect::<Vec<DriverResponse>>()
             },
@@ -303,5 +322,100 @@ pub struct NewDriver<'a> {
     pub given_name: &'a String, 
     pub family_name: &'a String,
     pub date_of_birth: &'a NaiveDate,
+    pub nationality: &'a String,
+}
+
+#[derive(Queryable, Selectable, Debug)]
+#[diesel(table_name = crate::db::schema::constructors)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct Constructor {
+    pub id: String,
+    pub url: String,
+    pub name: String,
+    pub nationality: String,
+    pub created_at: SystemTime,
+}
+
+impl Constructor {
+
+    pub fn get() -> Vec<Constructor> {
+        use crate::db::schema::constructors;
+        let mut connection = establish_connection();
+        constructors::table
+            .load::<Constructor>(&mut connection)
+            .expect("loading error")
+            .into_iter()
+            .collect::<Vec<Constructor>>()
+    }
+
+    pub async fn post() -> () {
+        use crate::db::schema::constructors;
+
+        let mut connection = establish_connection();
+        let params = URLParams {
+            limit: 1000,
+            offset: 0,
+        };
+        let response = Ergast::constructors(params)
+            .await
+            .expect("failed to fetch constructors");
+
+        for constructor in response.table.constructors {
+            let new_constructor = NewConstructor {
+                id: &constructor.constructor_id,
+                url: &constructor.url,
+                name: &constructor.name,
+                nationality: &constructor.nationality,
+            };
+
+            println!("Inserting constructor {}", constructor.constructor_id);
+            let result = diesel::insert_into(constructors::table)
+                .values(&new_constructor)
+                .returning(Constructor::as_returning())
+                .get_result(&mut connection);
+
+            if let Err(e) = result {
+                println!("Error inserting constructor {}: {}", constructor.constructor_id, e);
+            }
+        }
+    }
+
+    pub fn is_exist() -> bool {
+        let results = Constructor::get();
+        if results.is_empty() {
+            return false;
+        }
+        true
+    }
+
+    pub fn generate_response() -> Vec<ConstructorResponse> {
+        use crate::db::schema::constructors::dsl::*;
+
+        let mut connection = establish_connection();
+        let results = constructors.load::<Constructor>(&mut connection);
+
+        match results {
+            Ok(s) => {
+                s.into_iter().map(|d| ConstructorResponse{
+                    id: d.id,
+                    url: d.url,
+                    name: d.name,
+                    nationality: d.nationality,
+                }).collect::<Vec<ConstructorResponse>>()
+            },
+            Err(e) => {
+                println!("Error loading drivers: {}", e);
+                vec![]
+            }
+        }
+    }
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::db::schema::constructors)]
+pub struct NewConstructor<'a> {
+    pub id: &'a String,
+    pub url: &'a String,
+    pub name: &'a String,
     pub nationality: &'a String,
 }
