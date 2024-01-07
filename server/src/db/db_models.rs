@@ -100,13 +100,14 @@ impl Season {
 
         match results {
             Ok(s) => {
-                let v = s
+                let mut v = s
                     .iter()
                     .map(|s| SeasonResponse {
                         season: s.season,
                         url: s.url.clone(),
                     })
-                    .collect();
+                    .collect::<Vec<SeasonResponse>>();
+                v.reverse(); // descending order
                 Ok(v)
             }
             Err(e) => {
