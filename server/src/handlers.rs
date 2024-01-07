@@ -1,5 +1,6 @@
-use crate::models::{RaceResponse, ResultResponse};
-use crate::queries::{RoundQuery, YearQuery};use crate::db::db_models;
+use crate::db::db_models;
+use crate::models::ResultResponse;
+use crate::queries::{RoundQuery, YearQuery};
 use axum::extract::Query;
 use axum::response::IntoResponse;
 use axum::{http::StatusCode, Json};
@@ -16,31 +17,17 @@ pub async fn root() -> &'static str {
 pub async fn races_handler(
     year: Query<YearQuery>,
 ) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
-    let params = URLParams {
-        limit: 100,
-        offset: 0,
-    };
-    let result = Ergast::race(year.year, params).await; // Modify this line to pass the required 'year' argument
-
-    match result {
-        Ok(races) => {
-            let response: Vec<RaceResponse> = races
-                .table
-                .races
-                .iter()
-                .map(|entity| RaceResponse {
-                    season: year.year,
-                    round: entity.round,
-                    race_name: entity.race_name.clone(),
-                    circuit_name: entity.circuit.circuit_name.clone(),
-                    date: entity.date.clone(),
-                })
-                .collect();
-            let value = serde_json::to_value(response).unwrap();
-            Ok((StatusCode::OK, Json(value)))
-        }
-        Err(_) => Err((StatusCode::BAD_REQUEST, Json("error"))),
+    let season = db_models::Season::get(year.year);
+    // check if race data is already in the database
+    if !db_models::Race::is_exist(&season) {
+        println!("Race data is not in the database. Fetch from Ergast API.");
+        // if not, fetch race data from Ergast API and insert it into the database
+        db_models::Race::post(&season).await;
     }
+
+    let result = db_models::Race::generate_response(&season);
+    let value = serde_json::to_value(result).unwrap();
+    Ok((StatusCode::OK, Json(value)))
 }
 
 // basic handler that responds with a static string

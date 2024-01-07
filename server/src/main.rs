@@ -10,9 +10,9 @@ use handlers::{
 
 use crate::handlers::{pitstops_handler, seasons_post};
 mod color_pallet;
+mod db;
 mod models;
 mod queries;
-mod db;
 
 #[tokio::main]
 async fn main() {
