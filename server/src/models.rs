@@ -186,7 +186,7 @@ pub struct DriverResponse {
     pub id: String,
     pub permanent_number: Option<i32>,
     pub code: Option<String>,
-    pub given_name: String, 
+    pub given_name: String,
     pub family_name: String,
     pub date_of_birth: NaiveDate,
     pub nationality: String,

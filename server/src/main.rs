@@ -1,5 +1,5 @@
 use axum::{routing::get, Router};
-use db::db_models::{Season, Driver, Constructor};
+use db::db_models::{Constructor, Driver, Season};
 use http::Method;
 use tower_http::cors::{Any, CorsLayer};
 
@@ -9,7 +9,9 @@ use handlers::{
     standings_handler,
 };
 
-use crate::handlers::{pitstops_handler, seasons_post, drivers_get, drivers_post, constructors_get, constructors_post};
+use crate::handlers::{
+    constructors_get, constructors_post, drivers_get, drivers_post, pitstops_handler, seasons_post,
+};
 mod color_pallet;
 mod db;
 mod models;
@@ -39,7 +41,10 @@ async fn main() {
         .route("/laps-chart", get(laps_chart_handler))
         .route("/pitstops", get(pitstops_handler))
         .route("/drivers", get(drivers_get).post(drivers_post))
-        .route("/constructors", get(constructors_get).post(constructors_post))
+        .route(
+            "/constructors",
+            get(constructors_get).post(constructors_post),
+        )
         .layer(cors);
 
     // initial check function to ensure essential tables exist.
@@ -56,7 +61,7 @@ async fn check_and_create_tables() {
         println!("Season data is not exist. Create season data.");
         Season::post().await;
     }
-    
+
     if !Driver::is_exist() {
         println!("Driver data is not exist. Create driver data.");
         Driver::post().await;

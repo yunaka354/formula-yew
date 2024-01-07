@@ -62,10 +62,4 @@ diesel::joinable!(races -> seasons (season));
 diesel::joinable!(standings -> drivers (driver_id));
 diesel::joinable!(standings -> races (race));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    constructors,
-    drivers,
-    races,
-    seasons,
-    standings,
-);
+diesel::allow_tables_to_appear_in_same_query!(constructors, drivers, races, seasons, standings,);

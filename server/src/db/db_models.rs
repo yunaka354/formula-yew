@@ -1,6 +1,6 @@
 use crate::{
     db::connection::establish_connection,
-    models::{RaceResponse, SeasonResponse, DriverResponse, ConstructorResponse},
+    models::{ConstructorResponse, DriverResponse, RaceResponse, SeasonResponse},
 };
 use chrono::{NaiveDate, NaiveTime};
 use diesel::prelude::*;
@@ -217,7 +217,7 @@ pub struct Driver {
     pub id: String,
     pub permanent_number: Option<i32>,
     pub code: Option<String>,
-    pub given_name: String, 
+    pub given_name: String,
     pub family_name: String,
     pub date_of_birth: NaiveDate,
     pub nationality: String,
@@ -225,7 +225,6 @@ pub struct Driver {
 }
 
 impl Driver {
-
     pub fn get() -> Vec<Driver> {
         use crate::db::schema::drivers;
         let mut connection = establish_connection();
@@ -250,7 +249,7 @@ impl Driver {
 
         for driver in response.table.drivers {
             let naive_date = NaiveDate::parse_from_str(&driver.date_of_birth, "%Y-%m-%d")
-            .map_err(|e| format!("Error parsing date: {}", e));
+                .map_err(|e| format!("Error parsing date: {}", e));
 
             if let Err(e) = naive_date {
                 println!("Error parsing date: {}", e);
@@ -294,8 +293,9 @@ impl Driver {
         let results = drivers.load::<Driver>(&mut connection);
 
         match results {
-            Ok(s) => {
-                s.into_iter().map(|d| DriverResponse{
+            Ok(s) => s
+                .into_iter()
+                .map(|d| DriverResponse {
                     id: d.id,
                     permanent_number: d.permanent_number,
                     code: d.code,
@@ -303,8 +303,8 @@ impl Driver {
                     family_name: d.family_name,
                     date_of_birth: d.date_of_birth,
                     nationality: d.nationality,
-                }).collect::<Vec<DriverResponse>>()
-            },
+                })
+                .collect::<Vec<DriverResponse>>(),
             Err(e) => {
                 println!("Error loading drivers: {}", e);
                 vec![]
@@ -319,7 +319,7 @@ pub struct NewDriver<'a> {
     pub id: &'a String,
     pub permanent_number: Option<i32>,
     pub code: Option<String>,
-    pub given_name: &'a String, 
+    pub given_name: &'a String,
     pub family_name: &'a String,
     pub date_of_birth: &'a NaiveDate,
     pub nationality: &'a String,
@@ -337,7 +337,6 @@ pub struct Constructor {
 }
 
 impl Constructor {
-
     pub fn get() -> Vec<Constructor> {
         use crate::db::schema::constructors;
         let mut connection = establish_connection();
@@ -375,7 +374,10 @@ impl Constructor {
                 .get_result(&mut connection);
 
             if let Err(e) = result {
-                println!("Error inserting constructor {}: {}", constructor.constructor_id, e);
+                println!(
+                    "Error inserting constructor {}: {}",
+                    constructor.constructor_id, e
+                );
             }
         }
     }
@@ -395,14 +397,15 @@ impl Constructor {
         let results = constructors.load::<Constructor>(&mut connection);
 
         match results {
-            Ok(s) => {
-                s.into_iter().map(|d| ConstructorResponse{
+            Ok(s) => s
+                .into_iter()
+                .map(|d| ConstructorResponse {
                     id: d.id,
                     url: d.url,
                     name: d.name,
                     nationality: d.nationality,
-                }).collect::<Vec<ConstructorResponse>>()
-            },
+                })
+                .collect::<Vec<ConstructorResponse>>(),
             Err(e) => {
                 println!("Error loading drivers: {}", e);
                 vec![]

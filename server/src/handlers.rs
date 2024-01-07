@@ -199,7 +199,8 @@ pub async fn drivers_post() -> impl IntoResponse {
     (StatusCode::OK, Json("ok"))
 }
 
-pub async fn constructors_get() -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
+pub async fn constructors_get(
+) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
     let result = db_models::Constructor::generate_response();
     let value = serde_json::to_value(result).unwrap();
     Ok((StatusCode::OK, Json(value)))
