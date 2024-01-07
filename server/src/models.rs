@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use chrono::NaiveDate;
-use ergast_rust::models::{MRData, RaceTable, StandingTable};
+use ergast_rust::models::{MRData, RaceTable};
 use serde::{Deserialize, Serialize};
 
 use crate::color_pallet::ColorPallet;
@@ -64,25 +64,6 @@ pub struct ChartResponse<T, U> {
     pub y: Vec<U>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub color: Option<Vec<String>>,
-}
-
-pub fn convert_to_standings_responses(data: MRData<StandingTable>) -> ChartResponse<String, i32> {
-    let standings = data.table.standings_lists.get(0).unwrap();
-    let mut x = Vec::new();
-    let mut y = Vec::new();
-    let mut color = Vec::new();
-    for entity in standings.driver_standings.iter() {
-        x.push(entity.driver.code.clone().unwrap());
-        y.push(entity.points);
-        color.push(ColorPallet::get_color(
-            &entity.constructors.get(0).unwrap().name,
-        ));
-    }
-    ChartResponse {
-        x,
-        y,
-        color: Some(color),
-    }
 }
 
 #[derive(Deserialize, Serialize, Debug)]

@@ -49,7 +49,7 @@ diesel::table! {
         id -> Int4,
         race -> Int4,
         driver_id -> Text,
-        constructor_id -> Int4,
+        constructor_id -> Text,
         position -> Int4,
         position_text -> Text,
         points -> Int4,
@@ -59,6 +59,7 @@ diesel::table! {
 }
 
 diesel::joinable!(races -> seasons (season));
+diesel::joinable!(standings -> constructors (constructor_id));
 diesel::joinable!(standings -> drivers (driver_id));
 diesel::joinable!(standings -> races (race));
 

@@ -1,11 +1,13 @@
 use crate::{
+    color_pallet::ColorPallet,
     db::connection::establish_connection,
-    models::{ConstructorResponse, DriverResponse, RaceResponse, SeasonResponse},
+    models::{ChartResponse, ConstructorResponse, DriverResponse, RaceResponse, SeasonResponse},
 };
 use chrono::{NaiveDate, NaiveTime};
 use diesel::prelude::*;
 use diesel::result::Error;
-use ergast_rust::{api::URLParams, ergast::Ergast};
+use ergast_rust::api::{Path, URLParams};
+use ergast_rust::ergast::Ergast;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn combine_date_and_time(date_str: &str, time_str: &str) -> Result<SystemTime, chrono::ParseError> {
@@ -77,6 +79,15 @@ impl Season {
             .expect("loading error")
     }
 
+    pub fn get_by_id(id: i32) -> Season {
+        use crate::db::schema::seasons;
+        let mut connection = establish_connection();
+        seasons::table
+            .filter(seasons::id.eq(id))
+            .first::<Season>(&mut connection)
+            .expect("loading error")
+    }
+
     pub fn is_exist() -> bool {
         use crate::db::schema::seasons::dsl::*;
 
@@ -122,6 +133,7 @@ impl Season {
 #[diesel(table_name = crate::db::schema::races)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[diesel(belongs_to(Season))]
+#[allow(dead_code)]
 pub struct Race {
     id: i32,
     season: i32,
@@ -176,7 +188,7 @@ impl Race {
         }
     }
 
-    pub fn get(season: &Season) -> Vec<Race> {
+    pub fn get_races_in_season(season: &Season) -> Vec<Race> {
         use crate::db::schema::races;
         let mut connection = establish_connection();
         races::table
@@ -187,8 +199,17 @@ impl Race {
             .collect::<Vec<Race>>()
     }
 
+    pub fn get(season: &Season, round: i32) -> Option<Race> {
+        use crate::db::schema::races;
+        let mut connection = establish_connection();
+        let result = races::table
+            .filter(races::season.eq(season.id).and(races::round.eq(round)))
+            .load::<Race>(&mut connection);
+        result.ok().and_then(|mut v| v.pop())
+    }
+
     pub fn is_exist(season: &Season) -> bool {
-        let results = Race::get(&season);
+        let results = Race::get_races_in_season(&season);
         if results.is_empty() {
             return false;
         }
@@ -196,7 +217,7 @@ impl Race {
     }
 
     pub fn generate_response(season: &Season) -> Vec<RaceResponse> {
-        let results = Race::get(season);
+        let results = Race::get_races_in_season(season);
         results
             .iter()
             .map(|race| RaceResponse {
@@ -233,6 +254,15 @@ impl Driver {
             .expect("loading error")
             .into_iter()
             .collect::<Vec<Driver>>()
+    }
+
+    pub fn get_by_id(id: &str) -> Driver {
+        use crate::db::schema::drivers;
+        let mut connection = establish_connection();
+        drivers::table
+            .filter(drivers::id.eq(id))
+            .first::<Driver>(&mut connection)
+            .expect("loading error")
     }
 
     pub async fn post() -> () {
@@ -347,6 +377,15 @@ impl Constructor {
             .collect::<Vec<Constructor>>()
     }
 
+    pub fn get_by_id(id: &str) -> Constructor {
+        use crate::db::schema::constructors;
+        let mut connection = establish_connection();
+        constructors::table
+            .filter(constructors::id.eq(id))
+            .first::<Constructor>(&mut connection)
+            .expect("loading error")
+    }
+
     pub async fn post() -> () {
         use crate::db::schema::constructors;
 
@@ -421,4 +460,130 @@ pub struct NewConstructor<'a> {
     pub url: &'a String,
     pub name: &'a String,
     pub nationality: &'a String,
+}
+
+#[derive(Queryable, Selectable, Debug)]
+#[diesel(table_name = crate::db::schema::standings)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct Standing {
+    pub id: i32,
+    pub race: i32,
+    pub driver_id: String,
+    pub constructor_id: String,
+    pub position: i32,
+    pub position_text: String,
+    pub points: i32,
+    pub wins: i32,
+    pub created_at: SystemTime,
+}
+
+impl Standing {
+    pub fn get(race: &Race) -> Vec<Standing> {
+        use crate::db::schema::standings;
+        let mut connection = establish_connection();
+        standings::table
+            .filter(standings::race.eq(race.id))
+            .load::<Standing>(&mut connection)
+            .expect("loading error")
+            .into_iter()
+            .collect::<Vec<Standing>>()
+    }
+
+    pub async fn post(race: &Race) -> () {
+        use crate::db::schema::standings;
+
+        let mut connection = establish_connection();
+        let season = Season::get_by_id(race.season);
+        let path = Path {
+            year: season.season,
+            round: Some(race.round),
+        };
+
+        let params = URLParams {
+            limit: 1000,
+            offset: 0,
+        };
+        let response = Ergast::standings(path, params)
+            .await
+            .expect("failed to fetch standings");
+
+        let standing_list = &response
+            .table
+            .standings_lists
+            .get(0)
+            .unwrap()
+            .driver_standings;
+        for standing in standing_list {
+            let driver = Driver::get()
+                .into_iter()
+                .find(|d| d.id == standing.driver.driver_id)
+                .unwrap();
+            let constructor = Constructor::get()
+                .into_iter()
+                .find(|c| c.id == standing.constructors.get(0).unwrap().constructor_id)
+                .unwrap();
+            let new_standing = NewStanding {
+                race: &race.id,
+                driver_id: &driver.id,
+                constructor_id: &constructor.id,
+                position: &standing.position,
+                position_text: &standing.position_text,
+                points: &standing.points,
+                wins: &standing.wins,
+            };
+
+            println!("Inserting standing {} {}", race.season, race.round);
+            let result = diesel::insert_into(standings::table)
+                .values(&new_standing)
+                .returning(Standing::as_returning())
+                .get_result(&mut connection);
+
+            if let Err(e) = result {
+                println!(
+                    "Error inserting standing {} {}: {}",
+                    race.season, race.round, e
+                );
+            }
+        }
+    }
+
+    pub fn is_exist(race: &Race) -> bool {
+        let results = Standing::get(race);
+        if results.is_empty() {
+            return false;
+        }
+        true
+    }
+
+    pub fn generate_response(race: &Race) -> ChartResponse<String, i32> {
+        let results = Standing::get(race);
+        let mut x = Vec::new();
+        let mut y = Vec::new();
+        let mut color = Vec::new();
+
+        for entity in results {
+            let driver = Driver::get_by_id(&entity.driver_id);
+            let constructor = Constructor::get_by_id(&entity.constructor_id);
+            x.push(driver.code.unwrap_or("NA".to_string()));
+            y.push(entity.points);
+            color.push(ColorPallet::get_color(constructor.name.as_str()));
+        }
+        ChartResponse {
+            x,
+            y,
+            color: Some(color),
+        }
+    }
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::db::schema::standings)]
+pub struct NewStanding<'a> {
+    pub race: &'a i32,
+    pub driver_id: &'a String,
+    pub constructor_id: &'a String,
+    pub position: &'a i32,
+    pub position_text: &'a String,
+    pub points: &'a i32,
+    pub wins: &'a i32,
 }
