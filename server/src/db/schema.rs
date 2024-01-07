@@ -1,6 +1,29 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    constructors (id) {
+        id -> Text,
+        url -> Text,
+        name -> Text,
+        nationality -> Text,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    drivers (id) {
+        id -> Text,
+        permanent_number -> Nullable<Int4>,
+        code -> Nullable<Text>,
+        given_name -> Text,
+        family_name -> Text,
+        date_of_birth -> Date,
+        nationality -> Text,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     races (id) {
         id -> Int4,
         season -> Int4,
@@ -21,6 +44,28 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(races -> seasons (season));
+diesel::table! {
+    standings (id) {
+        id -> Int4,
+        race -> Int4,
+        driver_id -> Text,
+        constructor_id -> Int4,
+        position -> Int4,
+        position_text -> Text,
+        points -> Int4,
+        wins -> Int4,
+        created_at -> Timestamp,
+    }
+}
 
-diesel::allow_tables_to_appear_in_same_query!(races, seasons,);
+diesel::joinable!(races -> seasons (season));
+diesel::joinable!(standings -> drivers (driver_id));
+diesel::joinable!(standings -> races (race));
+
+diesel::allow_tables_to_appear_in_same_query!(
+    constructors,
+    drivers,
+    races,
+    seasons,
+    standings,
+);

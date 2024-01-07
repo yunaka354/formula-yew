@@ -1,6 +1,6 @@
 use crate::{
     db::connection::establish_connection,
-    models::{RaceResponse, SeasonResponse},
+    models::{RaceResponse, SeasonResponse, DriverResponse},
 };
 use chrono::{NaiveDate, NaiveTime};
 use diesel::prelude::*;
@@ -208,4 +208,100 @@ impl Race {
             })
             .collect::<Vec<RaceResponse>>()
     }
+}
+
+#[derive(Queryable, Selectable, Debug)]
+#[diesel(table_name = crate::db::schema::drivers)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct Driver {
+    pub id: String,
+    pub permanent_number: Option<i32>,
+    pub code: Option<String>,
+    pub given_name: String, 
+    pub family_name: String,
+    pub date_of_birth: NaiveDate,
+    pub nationality: String,
+    pub created_at: SystemTime,
+}
+
+impl Driver {
+    pub async fn post() -> () {
+        use crate::db::schema::drivers;
+
+        let mut connection = establish_connection();
+        let params = URLParams {
+            limit: 1000,
+            offset: 0,
+        };
+        let response = Ergast::drivers(params)
+            .await
+            .expect("failed to fetch drivers");
+
+        for driver in response.table.drivers {
+            let naive_date = NaiveDate::parse_from_str(&driver.date_of_birth, "%Y-%m-%d")
+            .map_err(|e| format!("Error parsing date: {}", e));
+
+            if let Err(e) = naive_date {
+                println!("Error parsing date: {}", e);
+                continue;
+            }
+
+            let new_driver = NewDriver {
+                id: &driver.driver_id,
+                permanent_number: driver.permanent_number,
+                code: driver.code,
+                given_name: &driver.given_name,
+                family_name: &driver.family_name,
+                date_of_birth: &naive_date.unwrap(),
+                nationality: &driver.nationality,
+            };
+
+            println!("Inserting driver {}", driver.driver_id);
+            let result = diesel::insert_into(drivers::table)
+                .values(&new_driver)
+                .returning(Driver::as_returning())
+                .get_result(&mut connection);
+
+            if let Err(e) = result {
+                println!("Error inserting driver {}: {}", driver.driver_id, e);
+            }
+        }
+    }
+
+    pub fn generate_response() -> Vec<DriverResponse> {
+        use crate::db::schema::drivers::dsl::*;
+
+        let mut connection = establish_connection();
+        let results = drivers.load::<Driver>(&mut connection);
+
+        match results {
+            Ok(s) => {
+                s.into_iter().map(|d| DriverResponse{
+                    id: d.id,
+                    permanent_number: d.permanent_number,
+                    code: d.code,
+                    given_name: d.given_name,
+                    family_name: d.family_name,
+                    date_of_birth: d.date_of_birth.to_string(),
+                    nationality: d.nationality,
+                }).collect::<Vec<DriverResponse>>()
+            },
+            Err(e) => {
+                println!("Error loading drivers: {}", e);
+                vec![]
+            }
+        }
+    }
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::db::schema::drivers)]
+pub struct NewDriver<'a> {
+    pub id: &'a String,
+    pub permanent_number: Option<i32>,
+    pub code: Option<String>,
+    pub given_name: &'a String, 
+    pub family_name: &'a String,
+    pub date_of_birth: &'a NaiveDate,
+    pub nationality: &'a String,
 }

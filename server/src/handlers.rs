@@ -187,3 +187,14 @@ pub async fn pitstops_handler(
         Err(_) => Err((StatusCode::BAD_REQUEST, Json("error"))),
     }
 }
+
+pub async fn drivers_get() -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
+    let result = db_models::Driver::generate_response();
+    let value = serde_json::to_value(result).unwrap();
+    Ok((StatusCode::OK, Json(value)))
+}
+
+pub async fn drivers_post() -> impl IntoResponse {
+    let _ = crate::db::db_models::Driver::post().await;
+    (StatusCode::OK, Json("ok"))
+}

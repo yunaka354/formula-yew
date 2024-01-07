@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use chrono::NaiveDate;
 use ergast_rust::models::{MRData, RaceTable, StandingTable};
 use serde::{Deserialize, Serialize};
 
@@ -178,4 +179,15 @@ pub fn convert_to_pit_stop_responses(data: MRData<RaceTable>) -> Vec<PitstopResp
         })
         .collect::<Vec<PitstopResponse>>();
     vec
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct DriverResponse {
+    pub id: String,
+    pub permanent_number: Option<i32>,
+    pub code: Option<String>,
+    pub given_name: String, 
+    pub family_name: String,
+    pub date_of_birth: String,
+    pub nationality: String,
 }
