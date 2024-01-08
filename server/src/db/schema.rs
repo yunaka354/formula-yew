@@ -40,6 +40,7 @@ diesel::table! {
         id -> Int4,
         race_id -> Int4,
         driver_id -> Text,
+        lap_number -> Int4,
         pitstop_number -> Int4,
         pittime -> Text,
         duration -> Numeric,

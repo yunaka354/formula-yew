@@ -16,6 +16,7 @@ CREATE TABLE pitstops (
     id SERIAL PRIMARY KEY,
     race_id INTEGER NOT NULL,
     driver_id TEXT NOT NULL,
+    lap_number INTEGER NOT NULL,
     pitstop_number INTEGER NOT NULL,
     pittime TEXT NOT NULL,
     duration  DECIMAL(6, 3) NOT NULL,

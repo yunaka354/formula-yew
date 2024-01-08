@@ -2,15 +2,17 @@ use crate::{
     color_pallet::ColorPallet,
     db::connection::establish_connection,
     models::{
-        ChartResponse, ConstructorResponse, DriverResponse, LapLineChartData, RaceResponse,
-        SeasonResponse,
+        ChartResponse, ConstructorResponse, DriverResponse, LapLineChartData, PitstopResponse,
+        RaceResponse, SeasonResponse,
     },
 };
+use bigdecimal::{BigDecimal, ToPrimitive};
 use chrono::{NaiveDate, NaiveTime};
 use diesel::prelude::*;
 use diesel::result::Error;
 use ergast_rust::api::{Path, URLParams};
 use ergast_rust::ergast::Ergast;
+use serde::Serialize;
 use std::{
     collections::HashMap,
     time::{SystemTime, UNIX_EPOCH},
@@ -772,4 +774,126 @@ pub struct NewLaptime<'a> {
     pub lap_number: &'a i32,
     pub lap_time: &'a String,
     pub position: &'a i32,
+}
+
+#[derive(Queryable, Selectable, Debug, Serialize)]
+#[diesel(table_name = crate::db::schema::pitstops)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct Pitstop {
+    pub id: i32,
+    pub race_id: i32,
+    pub driver_id: String,
+    pub lap_number: i32,
+    pub pitstop_number: i32,
+    pub pittime: String,
+    pub duration: BigDecimal,
+    pub created_at: SystemTime,
+}
+
+impl Pitstop {
+    pub fn get(race: &Race) -> Vec<Pitstop> {
+        use crate::db::schema::pitstops;
+        let mut connection = establish_connection();
+        pitstops::table
+            .filter(pitstops::race_id.eq(race.id))
+            .load::<Pitstop>(&mut connection)
+            .expect("loading error")
+            .into_iter()
+            .collect::<Vec<Pitstop>>()
+    }
+
+    pub async fn post(race: &Race) -> () {
+        use crate::db::schema::pitstops;
+
+        let mut connection = establish_connection();
+        let season = Season::get_by_id(race.season);
+        let path = Path {
+            year: season.season,
+            round: Some(race.round),
+        };
+
+        let params = URLParams {
+            limit: 2000,
+            offset: 0,
+        };
+        let response = Ergast::pitstops(path, params)
+            .await
+            .expect("failed to fetch pitstops");
+
+        let pitstops = &response.table.races.get(0).unwrap().pitstops;
+
+        let pitstops = match pitstops {
+            Some(l) => l,
+            None => {
+                println!("No pitstop data");
+                return;
+            }
+        };
+
+        for pitstop in pitstops {
+            let driver = Driver::get_by_id(&pitstop.driver_id);
+            let new_pitstop = NewPitstop {
+                race_id: &race.id,
+                driver_id: &driver.id,
+                lap_number: &pitstop.lap,
+                pitstop_number: &pitstop.stop,
+                pittime: &pitstop.time,
+                duration: &pitstop.duration.parse::<BigDecimal>().unwrap(),
+            };
+
+            println!(
+                "Inserting pitstop {} {} stop{}",
+                &race.id, &driver.id, &pitstop.stop
+            );
+            let result = diesel::insert_into(pitstops::table)
+                .values(&new_pitstop)
+                .returning(Pitstop::as_returning())
+                .get_result(&mut connection);
+
+            if let Err(e) = result {
+                println!(
+                    "Error inserting pitstop {} {} stop{}: error: {}",
+                    &race.id, &driver.id, &pitstop.stop, e
+                );
+            }
+        }
+    }
+
+    pub fn is_exist(race: &Race) -> bool {
+        let results = Pitstop::get(race);
+        if results.is_empty() {
+            return false;
+        }
+        true
+    }
+
+    pub async fn generate_response(race: &Race) -> Vec<PitstopResponse> {
+        if !Pitstop::is_exist(&race) {
+            println!("Pitstop data is not in the database. Fetch from Ergast API.");
+            // if not, fetch pitstop data from Ergast API and insert it into the database
+            Pitstop::post(&race).await;
+        }
+        let pitstops = Pitstop::get(&race);
+        let vec = pitstops
+            .iter()
+            .map(|pitstop| PitstopResponse {
+                driver_id: pitstop.driver_id.clone(),
+                lap: pitstop.lap_number,
+                duration: pitstop.duration.to_f64().unwrap_or_default(),
+                stop: pitstop.pitstop_number,
+            })
+            .collect::<Vec<PitstopResponse>>();
+        vec
+    }
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::db::schema::pitstops)]
+pub struct NewPitstop<'a> {
+    pub race_id: &'a i32,
+    pub driver_id: &'a String,
+    pub lap_number: &'a i32,
+    pub pitstop_number: &'a i32,
+    pub pittime: &'a String,
+    pub duration: &'a BigDecimal,
 }

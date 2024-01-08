@@ -7,8 +7,9 @@ edition = "2021"
 
 [dependencies]
 axum = "0.7.2"
+bigdecimal = { version = "0.4.2", features = ["serde"] }
 chrono = { version = "0.4.31", features = ["serde"] }
-diesel = { version = "2.1.4", features = ["postgres", "postgres_backend", "chrono"] }
+diesel = { version = "2.1.4", features = ["postgres", "postgres_backend", "chrono", "numeric"] }
 dotenvy = "0.15.7"
 ergast_rust = "0.1.0"
 http = "1.0.0"
