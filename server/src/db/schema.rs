@@ -24,6 +24,30 @@ diesel::table! {
 }
 
 diesel::table! {
+    laptimes (id) {
+        id -> Int4,
+        race_id -> Int4,
+        driver_id -> Text,
+        lap_number -> Int4,
+        lap_time -> Text,
+        position -> Int4,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    pitstops (id) {
+        id -> Int4,
+        race_id -> Int4,
+        driver_id -> Text,
+        pitstop_number -> Int4,
+        pittime -> Text,
+        duration -> Numeric,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     races (id) {
         id -> Int4,
         season -> Int4,
@@ -58,9 +82,21 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(laptimes -> drivers (driver_id));
+diesel::joinable!(laptimes -> races (race_id));
+diesel::joinable!(pitstops -> drivers (driver_id));
+diesel::joinable!(pitstops -> races (race_id));
 diesel::joinable!(races -> seasons (season));
 diesel::joinable!(standings -> constructors (constructor_id));
 diesel::joinable!(standings -> drivers (driver_id));
 diesel::joinable!(standings -> races (race));
 
-diesel::allow_tables_to_appear_in_same_query!(constructors, drivers, races, seasons, standings,);
+diesel::allow_tables_to_appear_in_same_query!(
+    constructors,
+    drivers,
+    laptimes,
+    pitstops,
+    races,
+    seasons,
+    standings,
+);

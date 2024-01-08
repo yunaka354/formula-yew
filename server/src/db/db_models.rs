@@ -1,14 +1,20 @@
 use crate::{
     color_pallet::ColorPallet,
     db::connection::establish_connection,
-    models::{ChartResponse, ConstructorResponse, DriverResponse, RaceResponse, SeasonResponse},
+    models::{
+        ChartResponse, ConstructorResponse, DriverResponse, LapLineChartData, RaceResponse,
+        SeasonResponse,
+    },
 };
 use chrono::{NaiveDate, NaiveTime};
 use diesel::prelude::*;
 use diesel::result::Error;
 use ergast_rust::api::{Path, URLParams};
 use ergast_rust::ergast::Ergast;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    collections::HashMap,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 fn combine_date_and_time(date_str: &str, time_str: &str) -> Result<SystemTime, chrono::ParseError> {
     let date = NaiveDate::parse_from_str(date_str, "%Y-%m-%d")?;
@@ -586,4 +592,158 @@ pub struct NewStanding<'a> {
     pub position_text: &'a String,
     pub points: &'a i32,
     pub wins: &'a i32,
+}
+
+#[derive(Queryable, Selectable, Debug)]
+#[diesel(table_name = crate::db::schema::laptimes)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct Laptime {
+    pub id: i32,
+    pub race_id: i32,
+    pub driver_id: String,
+    pub lap_number: i32,
+    pub lap_time: String,
+    pub position: i32,
+    pub created_at: SystemTime,
+}
+
+impl Laptime {
+    pub fn get(race: &Race) -> Vec<Laptime> {
+        use crate::db::schema::laptimes;
+        let mut connection = establish_connection();
+        laptimes::table
+            .filter(laptimes::race_id.eq(race.id))
+            .load::<Laptime>(&mut connection)
+            .expect("loading error")
+            .into_iter()
+            .collect::<Vec<Laptime>>()
+    }
+
+    pub async fn post(race: &Race) -> () {
+        use crate::db::schema::laptimes;
+
+        let mut connection = establish_connection();
+        let season = Season::get_by_id(race.season);
+        let path = Path {
+            year: season.season,
+            round: Some(race.round),
+        };
+
+        let params = URLParams {
+            limit: 2000,
+            offset: 0,
+        };
+        let response = Ergast::laps(path, params)
+            .await
+            .expect("failed to fetch laps");
+
+        let laps = &response.table.races.get(0).unwrap().laps;
+
+        let laps = match laps {
+            Some(l) => l,
+            None => {
+                println!("No laps data");
+                return;
+            }
+        };
+
+        for lap in laps {
+            let lap_number = lap.number;
+            for timing in &lap.timings {
+                let driver = Driver::get_by_id(&timing.driver_id);
+                let new_laptime = NewLaptime {
+                    race_id: &race.id,
+                    driver_id: &driver.id,
+                    lap_number: &lap_number,
+                    lap_time: &timing.time,
+                    position: &timing.position,
+                };
+
+                println!(
+                    "Inserting laptime {} {} lap{}",
+                    &race.id, &driver.id, lap_number
+                );
+                let result = diesel::insert_into(laptimes::table)
+                    .values(&new_laptime)
+                    .returning(Laptime::as_returning())
+                    .get_result(&mut connection);
+
+                if let Err(e) = result {
+                    println!(
+                        "Error inserting laptime {} {} lap:{}: {}",
+                        &race.id, &driver.id, &lap_number, e
+                    );
+                }
+            }
+        }
+    }
+
+    pub fn is_exist(race: &Race) -> bool {
+        let results = Laptime::get(race);
+        if results.is_empty() {
+            return false;
+        }
+        true
+    }
+
+    // convert text formatted like "m:ss.SSS" to f64
+    pub fn convert_lap_time_text_to_f64(lap_time: &str) -> Result<f64, &str> {
+        let parts: Vec<&str> = lap_time.split(':').collect();
+        if parts.len() != 2 {
+            return Err("Invalid time format");
+        }
+
+        let min_sec: Vec<&str> = parts[1].split('.').collect();
+        if min_sec.len() != 2 {
+            return Err("Invalid time format");
+        }
+
+        let minutes = match parts[0].parse::<f64>() {
+            Ok(m) => m,
+            Err(_) => return Err("Invalid minutes"),
+        };
+
+        let seconds = match min_sec[0].parse::<f64>() {
+            Ok(s) => s,
+            Err(_) => return Err("Invalid seconds"),
+        };
+
+        let milliseconds = match min_sec[1].parse::<f64>() {
+            Ok(ms) => ms / 1000.0, // convert milliseconds to seconds
+            Err(_) => return Err("Invalid milliseconds"),
+        };
+
+        Ok(minutes * 60.0 + seconds + milliseconds)
+    }
+
+    pub fn generate_response(race: &Race) -> Vec<LapLineChartData> {
+        let laps = Laptime::get(&race);
+        let mut map = HashMap::new();
+        for lap in laps {
+            let driver_id = lap.driver_id.clone();
+            let time = Laptime::convert_lap_time_text_to_f64(&lap.lap_time);
+            let lap = lap.lap_number;
+            let entry = map
+                .entry(driver_id.clone())
+                .or_insert(LapLineChartData::new(driver_id));
+            entry.laps.push(lap);
+            entry.laptime.push(time.unwrap());
+        }
+        let mut vec = map
+            .into_iter()
+            .map(|(_, v)| v)
+            .collect::<Vec<LapLineChartData>>();
+        vec.sort_by(|a, b| a.driver_id.partial_cmp(&b.driver_id).unwrap());
+        vec
+    }
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::db::schema::laptimes)]
+pub struct NewLaptime<'a> {
+    pub race_id: &'a i32,
+    pub driver_id: &'a String,
+    pub lap_number: &'a i32,
+    pub lap_time: &'a String,
+    pub position: &'a i32,
 }

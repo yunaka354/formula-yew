@@ -145,24 +145,24 @@ pub async fn laps_handler(
 pub async fn laps_chart_handler(
     round: Query<RoundQuery>,
 ) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
-    let path = Path {
-        year: round.year,
-        round: Some(round.round),
-    };
-    let params = URLParams {
-        limit: 2000,
-        offset: 0,
-    };
-    let result = Ergast::laps(path, params).await;
+    let season = Season::get(round.year);
+    let race = db_models::Race::get(&season, round.round);
 
-    match result {
-        Ok(laps) => {
-            let response = crate::models::convert_to_lap_chart_responses(laps);
-            let value = serde_json::to_value(response).unwrap();
-            Ok((StatusCode::OK, Json(value)))
+    let race = match race {
+        Some(r) => r,
+        None => {
+            return Err((StatusCode::BAD_REQUEST, Json("error")));
         }
-        Err(_) => Err((StatusCode::BAD_REQUEST, Json("error"))),
+    };
+
+    if !db_models::Laptime::is_exist(&race) {
+        println!("Laptime data is not in the database. Fetch from Ergast API.");
+        // if not, fetch standing data from Ergast API and insert it into the database
+        db_models::Laptime::post(&race).await;
     }
+    let result = db_models::Laptime::generate_response(&race);
+    let value = serde_json::to_value(result).unwrap();
+    Ok((StatusCode::OK, Json(value)))
 }
 
 pub async fn pitstops_handler(
