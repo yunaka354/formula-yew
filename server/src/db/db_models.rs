@@ -109,8 +109,14 @@ impl Season {
         }
     }
 
-    pub fn generate_response() -> Result<Vec<SeasonResponse>, Error> {
+    pub async fn generate_response() -> Result<Vec<SeasonResponse>, Error> {
         use crate::db::schema::seasons::dsl::*;
+        // check if season data is already in the database
+        if !Season::is_exist() {
+            println!("Season data is not in the database. Fetch from Ergast API.");
+            // if not, fetch season data from Ergast API and insert it into the database
+            Season::post().await;
+        }
 
         let mut connection = establish_connection();
         let results = seasons.load::<Season>(&mut connection);
@@ -222,8 +228,16 @@ impl Race {
         true
     }
 
-    pub fn generate_response(season: &Season) -> Vec<RaceResponse> {
+    pub async fn generate_response(season: &Season) -> Vec<RaceResponse> {
+        // check if race data is already in the database
+        if !Race::is_exist(&season) {
+            println!("Race data is not in the database. Fetch from Ergast API.");
+            // if not, fetch race data from Ergast API and insert it into the database
+            Race::post(&season).await;
+        }
+
         let results = Race::get_races_in_season(season);
+
         results
             .iter()
             .map(|race| RaceResponse {
@@ -561,7 +575,13 @@ impl Standing {
         true
     }
 
-    pub fn generate_response(race: &Race) -> ChartResponse<String, i32> {
+    pub async fn generate_response(race: &Race) -> ChartResponse<String, i32> {
+        if !Standing::is_exist(&race) {
+            println!("Standing data is not in the database. Fetch from Ergast API.");
+            // if not, fetch standing data from Ergast API and insert it into the database
+            Standing::post(&race).await;
+        }
+
         let results = Standing::get(race);
         let mut x = Vec::new();
         let mut y = Vec::new();
@@ -716,7 +736,13 @@ impl Laptime {
         Ok(minutes * 60.0 + seconds + milliseconds)
     }
 
-    pub fn generate_response(race: &Race) -> Vec<LapLineChartData> {
+    pub async fn generate_response(race: &Race) -> Vec<LapLineChartData> {
+        if !Laptime::is_exist(&race) {
+            println!("Laptime data is not in the database. Fetch from Ergast API.");
+            // if not, fetch standing data from Ergast API and insert it into the database
+            Laptime::post(&race).await;
+        }
+
         let laps = Laptime::get(&race);
         let mut map = HashMap::new();
         for lap in laps {

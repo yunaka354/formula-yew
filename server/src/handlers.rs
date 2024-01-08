@@ -18,14 +18,8 @@ pub async fn races_handler(
     year: Query<YearQuery>,
 ) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
     let season = db_models::Season::get(year.year);
-    // check if race data is already in the database
-    if !db_models::Race::is_exist(&season) {
-        println!("Race data is not in the database. Fetch from Ergast API.");
-        // if not, fetch race data from Ergast API and insert it into the database
-        db_models::Race::post(&season).await;
-    }
 
-    let result = db_models::Race::generate_response(&season);
+    let result = db_models::Race::generate_response(&season).await;
     let value = serde_json::to_value(result).unwrap();
     Ok((StatusCode::OK, Json(value)))
 }
@@ -44,12 +38,7 @@ pub async fn standings_handler(
         }
     };
 
-    if !db_models::Standing::is_exist(&race) {
-        println!("Standing data is not in the database. Fetch from Ergast API.");
-        // if not, fetch standing data from Ergast API and insert it into the database
-        db_models::Standing::post(&race).await;
-    }
-    let result = db_models::Standing::generate_response(&race);
+    let result = db_models::Standing::generate_response(&race).await;
     let value = serde_json::to_value(result).unwrap();
     Ok((StatusCode::OK, Json(value)))
 }
@@ -96,14 +85,7 @@ pub async fn results_handler(
 
 pub async fn seasons_handler() -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)>
 {
-    // check if season data is already in the database
-    if !db_models::Season::is_exist() {
-        println!("Season data is not in the database. Fetch from Ergast API.");
-        // if not, fetch season data from Ergast API and insert it into the database
-        db_models::Season::post().await;
-    }
-
-    let result = db_models::Season::generate_response();
+    let result = db_models::Season::generate_response().await;
 
     match result {
         Ok(seasons) => {
@@ -154,13 +136,7 @@ pub async fn laps_chart_handler(
             return Err((StatusCode::BAD_REQUEST, Json("error")));
         }
     };
-
-    if !db_models::Laptime::is_exist(&race) {
-        println!("Laptime data is not in the database. Fetch from Ergast API.");
-        // if not, fetch standing data from Ergast API and insert it into the database
-        db_models::Laptime::post(&race).await;
-    }
-    let result = db_models::Laptime::generate_response(&race);
+    let result = db_models::Laptime::generate_response(&race).await;
     let value = serde_json::to_value(result).unwrap();
     Ok((StatusCode::OK, Json(value)))
 }
