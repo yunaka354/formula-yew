@@ -1,5 +1,4 @@
 use crate::db::db_models::{self, Season};
-use crate::models::ResultResponse;
 use crate::queries::{RoundQuery, YearQuery};
 use axum::extract::Query;
 use axum::response::IntoResponse;
@@ -46,41 +45,17 @@ pub async fn standings_handler(
 pub async fn results_handler(
     round: Query<RoundQuery>,
 ) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
-    let path = Path {
-        year: round.year,
-        round: Some(round.round),
-    };
-    let params = URLParams {
-        limit: 100,
-        offset: 0,
-    };
-    let result = Ergast::results(path, params).await;
-
-    match result {
-        Ok(results) => {
-            let response: Vec<ResultResponse> = results
-                .table
-                .races
-                .get(0)
-                .map(|race| race.results.as_ref().unwrap())
-                .unwrap()
-                .iter()
-                .map(|entity| ResultResponse {
-                    position: entity.position,
-                    position_text: entity.position_text.clone(),
-                    code: entity.driver.code.clone().unwrap(),
-                    given_name: entity.driver.given_name.clone(),
-                    family_name: entity.driver.family_name.clone(),
-                    points: entity.points,
-                    status: entity.status.clone(),
-                    constructor: entity.constructor.name.clone(),
-                })
-                .collect();
-            let value = serde_json::to_value(response).unwrap();
-            Ok((StatusCode::OK, Json(value)))
+    let season = Season::get(round.year);
+    let race = db_models::Race::get(&season, round.round);
+    let race = match race {
+        Some(r) => r,
+        None => {
+            return Err((StatusCode::BAD_REQUEST, Json("error")));
         }
-        Err(_) => Err((StatusCode::BAD_REQUEST, Json("error"))),
-    }
+    };
+    let result = db_models::RaceResult::generate_response(&race).await;
+    let value = serde_json::to_value(result).unwrap();
+    Ok((StatusCode::OK, Json(value)))
 }
 
 pub async fn seasons_handler() -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)>

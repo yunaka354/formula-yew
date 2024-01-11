@@ -14,7 +14,8 @@ pub struct RaceResponse {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct ResultResponse {
+pub struct RaceResultResponse {
+    pub id: i32,
     pub position: i32,
     pub position_text: String,
     pub code: String,

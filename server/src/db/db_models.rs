@@ -3,7 +3,7 @@ use crate::{
     db::connection::establish_connection,
     models::{
         ChartResponse, ConstructorResponse, DriverResponse, LapLineChartData, PitstopResponse,
-        RaceResponse, SeasonResponse,
+        RaceResponse, RaceResultResponse, SeasonResponse,
     },
 };
 use bigdecimal::{BigDecimal, ToPrimitive};
@@ -896,4 +896,141 @@ pub struct NewPitstop<'a> {
     pub pitstop_number: &'a i32,
     pub pittime: &'a String,
     pub duration: &'a BigDecimal,
+}
+
+#[derive(Queryable, Selectable, Debug, Serialize)]
+#[diesel(table_name = crate::db::schema::race_results)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct RaceResult {
+    pub id: i32,
+    pub race_id: i32,
+    pub driver_id: String,
+    pub constructor_id: String,
+    pub position: i32,
+    pub position_text: String,
+    pub grid: i32,
+    pub laps: i32,
+    pub status: String,
+    pub points: BigDecimal,
+    pub created_at: SystemTime,
+}
+
+impl RaceResult {
+    pub fn get(race: &Race) -> Vec<RaceResult> {
+        use crate::db::schema::race_results;
+        let mut connection = establish_connection();
+        race_results::table
+            .filter(race_results::race_id.eq(race.id))
+            .load::<RaceResult>(&mut connection)
+            .expect("loading error")
+            .into_iter()
+            .collect::<Vec<RaceResult>>()
+    }
+
+    pub async fn post(race: &Race) -> () {
+        use crate::db::schema::race_results;
+
+        let mut connection = establish_connection();
+        let season = Season::get_by_id(race.season);
+        let path = Path {
+            year: season.season,
+            round: Some(race.round),
+        };
+
+        let params = URLParams {
+            limit: 2000,
+            offset: 0,
+        };
+        let response = Ergast::results(path, params)
+            .await
+            .expect("failed to fetch results");
+
+        let results = &response.table.races.get(0).unwrap().results;
+
+        let results = match results {
+            Some(l) => l,
+            None => {
+                println!("No race result data");
+                return;
+            }
+        };
+
+        for result in results {
+            let driver = Driver::get_by_id(&result.driver.driver_id);
+            let contructor = Constructor::get_by_id(&result.constructor.constructor_id);
+            let new_race_result = NewRaceResult {
+                race_id: &race.id,
+                driver_id: &driver.id,
+                constructor_id: &contructor.id,
+                position: &result.position,
+                position_text: &result.position_text,
+                grid: &result.grid,
+                laps: &result.laps,
+                status: &result.status,
+                points: &result.points.to_string().parse::<BigDecimal>().unwrap(),
+            };
+
+            println!("Inserting race_result {} {}", &race.id, &driver.id,);
+            let result = diesel::insert_into(race_results::table)
+                .values(&new_race_result)
+                .returning(RaceResult::as_returning())
+                .get_result(&mut connection);
+
+            if let Err(e) = result {
+                println!(
+                    "Error inserting race_result {} {}: error: {}",
+                    &race.id, &driver.id, e
+                );
+            }
+        }
+    }
+
+    pub fn is_exist(race: &Race) -> bool {
+        let results = RaceResult::get(race);
+        if results.is_empty() {
+            return false;
+        }
+        true
+    }
+
+    pub async fn generate_response(race: &Race) -> Vec<RaceResultResponse> {
+        if !RaceResult::is_exist(&race) {
+            println!("RaceResult data is not in the database. Fetch from Ergast API.");
+            // if not, fetch RaceResult data from Ergast API and insert it into the database
+            RaceResult::post(&race).await;
+        }
+        let race_results = RaceResult::get(&race);
+        let mut vec = Vec::new();
+        for race_result in race_results {
+            let driver = Driver::get_by_id(&race_result.driver_id);
+            let constructor = Constructor::get_by_id(&race_result.constructor_id);
+            let r = RaceResultResponse {
+                id: race_result.id,
+                position: race_result.position,
+                position_text: race_result.position_text,
+                code: driver.code.unwrap_or("NA".to_string()),
+                given_name: driver.given_name,
+                family_name: driver.family_name,
+                points: race_result.points.to_f64().unwrap_or_default() as f32,
+                status: race_result.status,
+                constructor: constructor.name,
+            };
+            vec.push(r);
+        }
+        vec
+    }
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::db::schema::race_results)]
+pub struct NewRaceResult<'a> {
+    pub race_id: &'a i32,
+    pub driver_id: &'a String,
+    pub constructor_id: &'a String,
+    pub position: &'a i32,
+    pub position_text: &'a String,
+    pub grid: &'a i32,
+    pub laps: &'a i32,
+    pub status: &'a String,
+    pub points: &'a BigDecimal,
 }
