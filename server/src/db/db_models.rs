@@ -748,12 +748,14 @@ impl Laptime {
         let laps = Laptime::get(&race);
         let mut map = HashMap::new();
         for lap in laps {
-            let driver_id = lap.driver_id.clone();
+            println!("{}", lap.id);
+            let driver = Driver::get_by_id(&lap.driver_id);
             let time = Laptime::convert_lap_time_text_to_f64(&lap.lap_time);
+            let race_result = RaceResult::get_by_race_and_driver(&race, &driver);
             let lap = lap.lap_number;
             let entry = map
-                .entry(driver_id.clone())
-                .or_insert(LapLineChartData::new(driver_id));
+                .entry(driver.id.clone())
+                .or_insert(LapLineChartData::new(driver.id, race_result.position));
             entry.laps.push(lap);
             entry.laptime.push(time.unwrap());
         }
@@ -761,7 +763,8 @@ impl Laptime {
             .into_iter()
             .map(|(_, v)| v)
             .collect::<Vec<LapLineChartData>>();
-        vec.sort_by(|a, b| a.driver_id.partial_cmp(&b.driver_id).unwrap());
+        // vec.sort_by(|a, b| a.driver_id.partial_cmp(&b.driver_id).unwrap());
+        vec.sort_by(|a, b| a.position.partial_cmp(&b.position).unwrap());
         vec
     }
 }
@@ -925,6 +928,15 @@ impl RaceResult {
             .expect("loading error")
             .into_iter()
             .collect::<Vec<RaceResult>>()
+    }
+
+    pub fn get_by_race_and_driver(race: &Race, driver: &Driver) -> RaceResult {
+        use crate::db::schema::race_results;
+        let mut connection = establish_connection();
+        race_results::table
+        .filter(race_results::race_id.eq(race.id).and(race_results::driver_id.eq(&driver.id)))
+        .first::<RaceResult>(&mut connection)
+        .expect("loading error")
     }
 
     pub async fn post(race: &Race) -> () {

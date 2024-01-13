@@ -68,15 +68,17 @@ pub struct ChartResponse<T, U> {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct LapLineChartData {
     pub driver_id: String,
+    pub position: i32, // result position
     pub laps: Vec<i32>,
     pub laptime: Vec<f64>,
     pub color: String,
 }
 
 impl LapLineChartData {
-    pub fn new(driver_id: String) -> Self {
+    pub fn new(driver_id: String, position: i32) -> Self {
         Self {
             driver_id: driver_id.clone(),
+            position,
             laps: Vec::new(),
             laptime: Vec::new(),
             color: ColorPallet::get_color(&driver_id).to_string(),
