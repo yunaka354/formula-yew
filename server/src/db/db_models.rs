@@ -1,5 +1,4 @@
 use crate::{
-    color_pallet::ColorPallet,
     db::connection::PooledConnection,
     models::{
         ChartResponse, ConstructorResponse, DriverResponse, LapLineChartData, PitstopResponse,
@@ -106,7 +105,9 @@ impl Season {
         }
     }
 
-    pub async fn generate_response(conn: &mut PooledConnection) -> Result<Vec<SeasonResponse>, Error> {
+    pub async fn generate_response(
+        conn: &mut PooledConnection,
+    ) -> Result<Vec<SeasonResponse>, Error> {
         use crate::db::schema::seasons::dsl::*;
         // check if season data is already in the database
         if !Season::is_exist(conn) {
@@ -221,7 +222,10 @@ impl Race {
         true
     }
 
-    pub async fn generate_response(season: &Season, conn: &mut PooledConnection) -> Vec<RaceResponse> {
+    pub async fn generate_response(
+        season: &Season,
+        conn: &mut PooledConnection,
+    ) -> Vec<RaceResponse> {
         // check if race data is already in the database
         if !Race::is_exist(&season, conn) {
             println!("Race data is not in the database. Fetch from Ergast API.");
@@ -456,6 +460,23 @@ impl Constructor {
             }
         }
     }
+
+    // return color hex code for the team
+    pub fn team_color(&self) -> &str {
+        match self.id.as_str() {
+            "mercedes" => "#00D2BE",
+            "ferrari" => "#DC0000",
+            "red_bull" => "#0600EF",
+            "mclaren" => "#FF8700",
+            "alpine" => "#0090FF",
+            "alphatauri" => "#2B4562",
+            "alfa" => "#900000",
+            "haas" => "#252525",
+            "williams" => "#005AFF",
+            "aston_martin" => "#006F62",
+            _ => "#000000",
+        }
+    }
 }
 
 #[derive(Insertable)]
@@ -558,7 +579,10 @@ impl Standing {
         true
     }
 
-    pub async fn generate_response(race: &Race, conn: &mut PooledConnection) -> ChartResponse<String, i32> {
+    pub async fn generate_response(
+        race: &Race,
+        conn: &mut PooledConnection,
+    ) -> ChartResponse<String, i32> {
         if !Standing::is_exist(&race, conn) {
             println!("Standing data is not in the database. Fetch from Ergast API.");
             // if not, fetch standing data from Ergast API and insert it into the database
@@ -575,7 +599,7 @@ impl Standing {
             let constructor = Constructor::get_by_id(&entity.constructor_id, conn);
             x.push(driver.code.unwrap_or("NA".to_string()));
             y.push(entity.points);
-            color.push(ColorPallet::get_color(constructor.name.as_str()));
+            color.push(constructor.team_color().to_string());
         }
         ChartResponse {
             x,
@@ -717,7 +741,10 @@ impl Laptime {
         Ok(minutes * 60.0 + seconds + milliseconds)
     }
 
-    pub async fn generate_response(race: &Race, conn: &mut PooledConnection) -> Vec<LapLineChartData> {
+    pub async fn generate_response(
+        race: &Race,
+        conn: &mut PooledConnection,
+    ) -> Vec<LapLineChartData> {
         if !Laptime::is_exist(&race, conn) {
             println!("Laptime data is not in the database. Fetch from Ergast API.");
             // if not, fetch standing data from Ergast API and insert it into the database
@@ -727,14 +754,13 @@ impl Laptime {
         let laps = Laptime::get(&race, conn);
         let mut map = HashMap::new();
         for lap in laps {
-            println!("{}", lap.id);
             let driver = Driver::get_by_id(&lap.driver_id, conn);
             let time = Laptime::convert_lap_time_text_to_f64(&lap.lap_time);
             let race_result = RaceResult::get_by_race_and_driver(&race, &driver, conn);
             let lap = lap.lap_number;
             let entry = map
                 .entry(driver.id.clone())
-                .or_insert(LapLineChartData::new(driver.id, race_result.position));
+                .or_insert(LapLineChartData::new(driver.id, race_result, conn));
             entry.laps.push(lap);
             entry.laptime.push(time.unwrap());
         }
@@ -847,7 +873,10 @@ impl Pitstop {
         true
     }
 
-    pub async fn generate_response(race: &Race, conn: &mut PooledConnection) -> Vec<PitstopResponse> {
+    pub async fn generate_response(
+        race: &Race,
+        conn: &mut PooledConnection,
+    ) -> Vec<PitstopResponse> {
         if !Pitstop::is_exist(&race, conn) {
             println!("Pitstop data is not in the database. Fetch from Ergast API.");
             // if not, fetch pitstop data from Ergast API and insert it into the database
@@ -906,12 +935,20 @@ impl RaceResult {
             .collect::<Vec<RaceResult>>()
     }
 
-    pub fn get_by_race_and_driver(race: &Race, driver: &Driver, conn: &mut PooledConnection) -> RaceResult {
+    pub fn get_by_race_and_driver(
+        race: &Race,
+        driver: &Driver,
+        conn: &mut PooledConnection,
+    ) -> RaceResult {
         use crate::db::schema::race_results;
         race_results::table
-        .filter(race_results::race_id.eq(race.id).and(race_results::driver_id.eq(&driver.id)))
-        .first::<RaceResult>(conn)
-        .expect("loading error")
+            .filter(
+                race_results::race_id
+                    .eq(race.id)
+                    .and(race_results::driver_id.eq(&driver.id)),
+            )
+            .first::<RaceResult>(conn)
+            .expect("loading error")
     }
 
     pub async fn post(race: &Race, conn: &mut PooledConnection) -> () {
@@ -979,7 +1016,10 @@ impl RaceResult {
         true
     }
 
-    pub async fn generate_response(race: &Race, conn: &mut PooledConnection) -> Vec<RaceResultResponse> {
+    pub async fn generate_response(
+        race: &Race,
+        conn: &mut PooledConnection,
+    ) -> Vec<RaceResultResponse> {
         if !RaceResult::is_exist(&race, conn) {
             println!("RaceResult data is not in the database. Fetch from Ergast API.");
             // if not, fetch RaceResult data from Ergast API and insert it into the database

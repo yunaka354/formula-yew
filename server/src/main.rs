@@ -1,5 +1,8 @@
-use axum::{routing::get, Router, Extension};
-use db::{db_models::{Constructor, Driver, Season}, connection::PooledConnection};
+use axum::{routing::get, Extension, Router};
+use db::{
+    connection::PooledConnection,
+    db_models::{Constructor, Driver, Season},
+};
 use http::Method;
 use tower_http::cors::{Any, CorsLayer};
 
@@ -12,7 +15,6 @@ use handlers::{
 use crate::handlers::{
     constructors_get, constructors_post, drivers_get, drivers_post, pitstops_handler, seasons_post,
 };
-mod color_pallet;
 mod db;
 mod models;
 mod queries;
@@ -21,13 +23,13 @@ mod queries;
 async fn main() {
     // initialize tracing
     tracing_subscriber::fmt::init();
-    
+
     // CORS setting
     // CAUTION: change this setting for production.
     let cors = CorsLayer::new()
-    .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-    .allow_headers(Any)
-    .allow_origin(Any);
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers(Any)
+        .allow_origin(Any);
 
     // DB pool
     let pool = db::connection::establish_connection();
@@ -35,11 +37,11 @@ async fn main() {
     // initial check function to ensure essential tables exist.
     let mut conn = pool.get().expect("Failed to get DB connection from pool");
     check_and_create_tables(&mut conn).await;
-    
+
     // build our application with a route
     let app = Router::new()
-    .route("/", get(root))
-    .route("/standings", get(standings_handler))
+        .route("/", get(root))
+        .route("/standings", get(standings_handler))
         .route("/seasons", get(seasons_handler).post(seasons_post))
         .route("/races", get(races_handler))
         .route("/results", get(results_handler))
@@ -53,7 +55,7 @@ async fn main() {
         )
         .layer(cors)
         .layer(Extension(pool));
-    
+
     // run our app with hyper, listening globally on port 3000
     let port = "0.0.0.0:3000";
     let listener = tokio::net::TcpListener::bind(port).await.unwrap();

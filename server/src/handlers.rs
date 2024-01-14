@@ -1,9 +1,9 @@
-use crate::db::db_models::{self, Season};
 use crate::db::connection::Pool;
+use crate::db::db_models::{self, Season};
 use crate::queries::{RoundQuery, YearQuery};
-use axum::Extension;
 use axum::extract::Query;
 use axum::response::IntoResponse;
+use axum::Extension;
 use axum::{http::StatusCode, Json};
 use ergast_rust::api::{Path, URLParams};
 use ergast_rust::ergast::Ergast;
@@ -68,8 +68,7 @@ pub async fn results_handler(
 
 pub async fn seasons_handler(
     Extension(pool): Extension<Pool>,
-) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)>
-{
+) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
     let mut conn = pool.get().expect("Failed to get DB connection from pool");
     let result = db_models::Season::generate_response(&mut conn).await;
 
@@ -82,9 +81,7 @@ pub async fn seasons_handler(
     }
 }
 
-pub async fn seasons_post(
-    Extension(pool): Extension<Pool>,
-) -> impl IntoResponse {
+pub async fn seasons_post(Extension(pool): Extension<Pool>) -> impl IntoResponse {
     let mut conn = pool.get().expect("Failed to get DB connection from pool");
     let _ = crate::db::db_models::Season::post(&mut conn).await;
     (StatusCode::OK, Json("ok"))
@@ -153,16 +150,14 @@ pub async fn drivers_get(
     Ok((StatusCode::OK, Json(value)))
 }
 
-pub async fn drivers_post(
-    Extension(pool): Extension<Pool>,
-) -> impl IntoResponse {
+pub async fn drivers_post(Extension(pool): Extension<Pool>) -> impl IntoResponse {
     let mut conn = pool.get().expect("Failed to get DB connection from pool");
     let _ = crate::db::db_models::Driver::post(&mut conn).await;
     (StatusCode::OK, Json("ok"))
 }
 
 pub async fn constructors_get(
-    Extension(pool): Extension<Pool>
+    Extension(pool): Extension<Pool>,
 ) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
     let mut conn = pool.get().expect("Failed to get DB connection from pool");
     let result = db_models::Constructor::generate_response(&mut conn);
@@ -170,9 +165,7 @@ pub async fn constructors_get(
     Ok((StatusCode::OK, Json(value)))
 }
 
-pub async fn constructors_post(
-    Extension(pool): Extension<Pool>,
-) -> impl IntoResponse {
+pub async fn constructors_post(Extension(pool): Extension<Pool>) -> impl IntoResponse {
     let mut conn = pool.get().expect("Failed to get DB connection from pool");
     let _ = crate::db::db_models::Constructor::post(&mut conn).await;
     (StatusCode::OK, Json("ok"))

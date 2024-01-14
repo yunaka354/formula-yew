@@ -2,7 +2,8 @@ use chrono::NaiveDate;
 use ergast_rust::models::{MRData, RaceTable};
 use serde::{Deserialize, Serialize};
 
-use crate::color_pallet::ColorPallet;
+use crate::db::connection::PooledConnection;
+use crate::db::db_models::{Constructor, RaceResult};
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct RaceResponse {
@@ -75,13 +76,14 @@ pub struct LapLineChartData {
 }
 
 impl LapLineChartData {
-    pub fn new(driver_id: String, position: i32) -> Self {
+    pub fn new(driver_id: String, race_result: RaceResult, conn: &mut PooledConnection) -> Self {
+        let constructor = Constructor::get_by_id(&race_result.constructor_id, conn);
         Self {
             driver_id: driver_id.clone(),
-            position,
+            position: race_result.position,
             laps: Vec::new(),
             laptime: Vec::new(),
-            color: ColorPallet::get_color(&driver_id).to_string(),
+            color: constructor.team_color().to_string(),
         }
     }
 }
