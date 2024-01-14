@@ -1,5 +1,5 @@
-use axum::{routing::get, Router};
-use db::db_models::{Constructor, Driver, Season};
+use axum::{routing::get, Router, Extension};
+use db::{db_models::{Constructor, Driver, Season}, connection::PooledConnection};
 use http::Method;
 use tower_http::cors::{Any, CorsLayer};
 
@@ -21,19 +21,25 @@ mod queries;
 async fn main() {
     // initialize tracing
     tracing_subscriber::fmt::init();
+    
     // CORS setting
     // CAUTION: change this setting for production.
     let cors = CorsLayer::new()
-        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-        .allow_headers(Any)
-        .allow_origin(Any);
+    .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+    .allow_headers(Any)
+    .allow_origin(Any);
 
-    let port = "0.0.0.0:3000";
+    // DB pool
+    let pool = db::connection::establish_connection();
 
+    // initial check function to ensure essential tables exist.
+    let mut conn = pool.get().expect("Failed to get DB connection from pool");
+    check_and_create_tables(&mut conn).await;
+    
     // build our application with a route
     let app = Router::new()
-        .route("/", get(root))
-        .route("/standings", get(standings_handler))
+    .route("/", get(root))
+    .route("/standings", get(standings_handler))
         .route("/seasons", get(seasons_handler).post(seasons_post))
         .route("/races", get(races_handler))
         .route("/results", get(results_handler))
@@ -45,30 +51,29 @@ async fn main() {
             "/constructors",
             get(constructors_get).post(constructors_post),
         )
-        .layer(cors);
-
-    // initial check function to ensure essential tables exist.
-    check_and_create_tables().await;
-
+        .layer(cors)
+        .layer(Extension(pool));
+    
     // run our app with hyper, listening globally on port 3000
+    let port = "0.0.0.0:3000";
     let listener = tokio::net::TcpListener::bind(port).await.unwrap();
     println!("server is listening port http://{}", port);
     axum::serve(listener, app).await.unwrap();
 }
 
-async fn check_and_create_tables() {
-    if !Season::is_exist() {
+async fn check_and_create_tables(conn: &mut PooledConnection) {
+    if !Season::is_exist(conn) {
         println!("Season data is not exist. Create season data.");
-        Season::post().await;
+        Season::post(conn).await;
     }
 
-    if !Driver::is_exist() {
+    if !Driver::is_exist(conn) {
         println!("Driver data is not exist. Create driver data.");
-        Driver::post().await;
+        Driver::post(conn).await;
     }
 
-    if !Constructor::is_exist() {
+    if !Constructor::is_exist(conn) {
         println!("Constructor data is not exist. Create constructor data.");
-        Constructor::post().await;
+        Constructor::post(conn).await;
     }
 }

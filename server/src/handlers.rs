@@ -1,5 +1,7 @@
 use crate::db::db_models::{self, Season};
+use crate::db::connection::Pool;
 use crate::queries::{RoundQuery, YearQuery};
+use axum::Extension;
 use axum::extract::Query;
 use axum::response::IntoResponse;
 use axum::{http::StatusCode, Json};
@@ -14,21 +16,25 @@ pub async fn root() -> &'static str {
 
 // handler returns a JSON object from Ergast::race
 pub async fn races_handler(
+    Extension(pool): Extension<Pool>,
     year: Query<YearQuery>,
 ) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
-    let season = db_models::Season::get(year.year);
+    let mut conn = pool.get().expect("Failed to get DB connection from pool");
+    let season = db_models::Season::get(year.year, &mut conn);
 
-    let result = db_models::Race::generate_response(&season).await;
+    let result = db_models::Race::generate_response(&season, &mut conn).await;
     let value = serde_json::to_value(result).unwrap();
     Ok((StatusCode::OK, Json(value)))
 }
 
 // basic handler that responds with a static string
 pub async fn standings_handler(
+    Extension(pool): Extension<Pool>,
     round: Query<RoundQuery>,
 ) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
-    let season = Season::get(round.year);
-    let race = db_models::Race::get(&season, round.round);
+    let mut conn = pool.get().expect("Failed to get DB connection from pool");
+    let season = Season::get(round.year, &mut conn);
+    let race = db_models::Race::get(&season, round.round, &mut conn);
 
     let race = match race {
         Some(r) => r,
@@ -37,30 +43,35 @@ pub async fn standings_handler(
         }
     };
 
-    let result = db_models::Standing::generate_response(&race).await;
+    let result = db_models::Standing::generate_response(&race, &mut conn).await;
     let value = serde_json::to_value(result).unwrap();
     Ok((StatusCode::OK, Json(value)))
 }
 
 pub async fn results_handler(
+    Extension(pool): Extension<Pool>,
     round: Query<RoundQuery>,
 ) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
-    let season = Season::get(round.year);
-    let race = db_models::Race::get(&season, round.round);
+    let mut conn = pool.get().expect("Failed to get DB connection from pool");
+    let season = Season::get(round.year, &mut conn);
+    let race = db_models::Race::get(&season, round.round, &mut conn);
     let race = match race {
         Some(r) => r,
         None => {
             return Err((StatusCode::BAD_REQUEST, Json("error")));
         }
     };
-    let result = db_models::RaceResult::generate_response(&race).await;
+    let result = db_models::RaceResult::generate_response(&race, &mut conn).await;
     let value = serde_json::to_value(result).unwrap();
     Ok((StatusCode::OK, Json(value)))
 }
 
-pub async fn seasons_handler() -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)>
+pub async fn seasons_handler(
+    Extension(pool): Extension<Pool>,
+) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)>
 {
-    let result = db_models::Season::generate_response().await;
+    let mut conn = pool.get().expect("Failed to get DB connection from pool");
+    let result = db_models::Season::generate_response(&mut conn).await;
 
     match result {
         Ok(seasons) => {
@@ -71,8 +82,11 @@ pub async fn seasons_handler() -> Result<(StatusCode, Json<Value>), (StatusCode,
     }
 }
 
-pub async fn seasons_post() -> impl IntoResponse {
-    let _ = crate::db::db_models::Season::post().await;
+pub async fn seasons_post(
+    Extension(pool): Extension<Pool>,
+) -> impl IntoResponse {
+    let mut conn = pool.get().expect("Failed to get DB connection from pool");
+    let _ = crate::db::db_models::Season::post(&mut conn).await;
     (StatusCode::OK, Json("ok"))
 }
 
@@ -100,10 +114,12 @@ pub async fn laps_handler(
 }
 
 pub async fn laps_chart_handler(
+    Extension(pool): Extension<Pool>,
     round: Query<RoundQuery>,
 ) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
-    let season = Season::get(round.year);
-    let race = db_models::Race::get(&season, round.round);
+    let mut conn = pool.get().expect("Failed to get DB connection from pool");
+    let season = Season::get(round.year, &mut conn);
+    let race = db_models::Race::get(&season, round.round, &mut conn);
 
     let race = match race {
         Some(r) => r,
@@ -111,40 +127,53 @@ pub async fn laps_chart_handler(
             return Err((StatusCode::BAD_REQUEST, Json("error")));
         }
     };
-    let result = db_models::Laptime::generate_response(&race).await;
+    let result = db_models::Laptime::generate_response(&race, &mut conn).await;
     let value = serde_json::to_value(result).unwrap();
     Ok((StatusCode::OK, Json(value)))
 }
 
 pub async fn pitstops_handler(
+    Extension(pool): Extension<Pool>,
     round: Query<RoundQuery>,
 ) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
-    let season = Season::get(round.year);
-    let race = db_models::Race::get(&season, round.round).unwrap();
-    let result = db_models::Pitstop::generate_response(&race).await;
+    let mut conn = pool.get().expect("Failed to get DB connection from pool");
+    let season = Season::get(round.year, &mut conn);
+    let race = db_models::Race::get(&season, round.round, &mut conn).unwrap();
+    let result = db_models::Pitstop::generate_response(&race, &mut conn).await;
     let value = serde_json::to_value(result).unwrap();
     Ok((StatusCode::OK, Json(value)))
 }
 
-pub async fn drivers_get() -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
-    let result = db_models::Driver::generate_response();
+pub async fn drivers_get(
+    Extension(pool): Extension<Pool>,
+) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
+    let mut conn = pool.get().expect("Failed to get DB connection from pool");
+    let result = db_models::Driver::generate_response(&mut conn);
     let value = serde_json::to_value(result).unwrap();
     Ok((StatusCode::OK, Json(value)))
 }
 
-pub async fn drivers_post() -> impl IntoResponse {
-    let _ = crate::db::db_models::Driver::post().await;
+pub async fn drivers_post(
+    Extension(pool): Extension<Pool>,
+) -> impl IntoResponse {
+    let mut conn = pool.get().expect("Failed to get DB connection from pool");
+    let _ = crate::db::db_models::Driver::post(&mut conn).await;
     (StatusCode::OK, Json("ok"))
 }
 
 pub async fn constructors_get(
+    Extension(pool): Extension<Pool>
 ) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
-    let result = db_models::Constructor::generate_response();
+    let mut conn = pool.get().expect("Failed to get DB connection from pool");
+    let result = db_models::Constructor::generate_response(&mut conn);
     let value = serde_json::to_value(result).unwrap();
     Ok((StatusCode::OK, Json(value)))
 }
 
-pub async fn constructors_post() -> impl IntoResponse {
-    let _ = crate::db::db_models::Constructor::post().await;
+pub async fn constructors_post(
+    Extension(pool): Extension<Pool>,
+) -> impl IntoResponse {
+    let mut conn = pool.get().expect("Failed to get DB connection from pool");
+    let _ = crate::db::db_models::Constructor::post(&mut conn).await;
     (StatusCode::OK, Json("ok"))
 }

@@ -1,6 +1,6 @@
 use crate::{
     color_pallet::ColorPallet,
-    db::connection::establish_connection,
+    db::connection::PooledConnection,
     models::{
         ChartResponse, ConstructorResponse, DriverResponse, LapLineChartData, PitstopResponse,
         RaceResponse, RaceResultResponse, SeasonResponse,
@@ -49,10 +49,9 @@ pub struct NewSeason<'a> {
 }
 
 impl Season {
-    pub async fn post() {
+    pub async fn post(conn: &mut PooledConnection) {
         use crate::db::schema::seasons;
 
-        let mut connection = establish_connection();
         let params = URLParams {
             limit: 100,
             offset: 0,
@@ -70,7 +69,7 @@ impl Season {
             let result = diesel::insert_into(seasons::table)
                 .values(&new_season)
                 .returning(Season::as_returning())
-                .get_result(&mut connection);
+                .get_result(conn);
 
             if let Err(e) = result {
                 println!("Error inserting season {}: {}", season.season, e);
@@ -78,29 +77,25 @@ impl Season {
         }
     }
 
-    pub fn get(season: i32) -> Season {
+    pub fn get(season: i32, conn: &mut PooledConnection) -> Season {
         use crate::db::schema::seasons;
-        let mut connection = establish_connection();
         seasons::table
             .filter(seasons::season.eq(season))
-            .first::<Season>(&mut connection)
+            .first::<Season>(conn)
             .expect("loading error")
     }
 
-    pub fn get_by_id(id: i32) -> Season {
+    pub fn get_by_id(id: i32, conn: &mut PooledConnection) -> Season {
         use crate::db::schema::seasons;
-        let mut connection = establish_connection();
         seasons::table
             .filter(seasons::id.eq(id))
-            .first::<Season>(&mut connection)
+            .first::<Season>(conn)
             .expect("loading error")
     }
 
-    pub fn is_exist() -> bool {
+    pub fn is_exist(conn: &mut PooledConnection) -> bool {
         use crate::db::schema::seasons::dsl::*;
-
-        let mut connection = establish_connection();
-        let results = seasons.load::<Season>(&mut connection);
+        let results = seasons.load::<Season>(conn);
 
         match results {
             Ok(s) => !s.is_empty(),
@@ -111,17 +106,16 @@ impl Season {
         }
     }
 
-    pub async fn generate_response() -> Result<Vec<SeasonResponse>, Error> {
+    pub async fn generate_response(conn: &mut PooledConnection) -> Result<Vec<SeasonResponse>, Error> {
         use crate::db::schema::seasons::dsl::*;
         // check if season data is already in the database
-        if !Season::is_exist() {
+        if !Season::is_exist(conn) {
             println!("Season data is not in the database. Fetch from Ergast API.");
             // if not, fetch season data from Ergast API and insert it into the database
-            Season::post().await;
+            Season::post(conn).await;
         }
 
-        let mut connection = establish_connection();
-        let results = seasons.load::<Season>(&mut connection);
+        let results = seasons.load::<Season>(conn);
 
         match results {
             Ok(s) => {
@@ -169,10 +163,9 @@ pub struct NewRace<'a> {
 }
 
 impl Race {
-    pub async fn post(season: &Season) -> () {
+    pub async fn post(season: &Season, conn: &mut PooledConnection) -> () {
         use crate::db::schema::races;
 
-        let mut connection = establish_connection();
         let params = URLParams {
             limit: 100,
             offset: 0,
@@ -182,7 +175,7 @@ impl Race {
             .expect("failed to fetch races");
 
         for race in response.table.races {
-            let season = Season::get(race.season);
+            let season = Season::get(race.season, conn);
             let new_race = NewRace {
                 season: &season.id,
                 round: &race.round,
@@ -194,7 +187,7 @@ impl Race {
             let result = diesel::insert_into(races::table)
                 .values(&new_race)
                 .returning(Race::as_returning())
-                .get_result(&mut connection);
+                .get_result(conn);
 
             if let Err(e) = result {
                 println!("Error inserting race {} {}: {}", race.season, race.round, e);
@@ -202,43 +195,41 @@ impl Race {
         }
     }
 
-    pub fn get_races_in_season(season: &Season) -> Vec<Race> {
+    pub fn get_races_in_season(season: &Season, conn: &mut PooledConnection) -> Vec<Race> {
         use crate::db::schema::races;
-        let mut connection = establish_connection();
         races::table
             .filter(races::season.eq(season.id))
-            .load::<Race>(&mut connection)
+            .load::<Race>(conn)
             .expect("loading error")
             .into_iter()
             .collect::<Vec<Race>>()
     }
 
-    pub fn get(season: &Season, round: i32) -> Option<Race> {
+    pub fn get(season: &Season, round: i32, conn: &mut PooledConnection) -> Option<Race> {
         use crate::db::schema::races;
-        let mut connection = establish_connection();
         let result = races::table
             .filter(races::season.eq(season.id).and(races::round.eq(round)))
-            .load::<Race>(&mut connection);
+            .load::<Race>(conn);
         result.ok().and_then(|mut v| v.pop())
     }
 
-    pub fn is_exist(season: &Season) -> bool {
-        let results = Race::get_races_in_season(&season);
+    pub fn is_exist(season: &Season, conn: &mut PooledConnection) -> bool {
+        let results = Race::get_races_in_season(&season, conn);
         if results.is_empty() {
             return false;
         }
         true
     }
 
-    pub async fn generate_response(season: &Season) -> Vec<RaceResponse> {
+    pub async fn generate_response(season: &Season, conn: &mut PooledConnection) -> Vec<RaceResponse> {
         // check if race data is already in the database
-        if !Race::is_exist(&season) {
+        if !Race::is_exist(&season, conn) {
             println!("Race data is not in the database. Fetch from Ergast API.");
             // if not, fetch race data from Ergast API and insert it into the database
-            Race::post(&season).await;
+            Race::post(&season, conn).await;
         }
 
-        let results = Race::get_races_in_season(season);
+        let results = Race::get_races_in_season(season, conn);
 
         results
             .iter()
@@ -268,29 +259,26 @@ pub struct Driver {
 }
 
 impl Driver {
-    pub fn get() -> Vec<Driver> {
+    pub fn get(conn: &mut PooledConnection) -> Vec<Driver> {
         use crate::db::schema::drivers;
-        let mut connection = establish_connection();
         drivers::table
-            .load::<Driver>(&mut connection)
+            .load::<Driver>(conn)
             .expect("loading error")
             .into_iter()
             .collect::<Vec<Driver>>()
     }
 
-    pub fn get_by_id(id: &str) -> Driver {
+    pub fn get_by_id(id: &str, conn: &mut PooledConnection) -> Driver {
         use crate::db::schema::drivers;
-        let mut connection = establish_connection();
         drivers::table
             .filter(drivers::id.eq(id))
-            .first::<Driver>(&mut connection)
+            .first::<Driver>(conn)
             .expect("loading error")
     }
 
-    pub async fn post() -> () {
+    pub async fn post(conn: &mut PooledConnection) -> () {
         use crate::db::schema::drivers;
 
-        let mut connection = establish_connection();
         let params = URLParams {
             limit: 1000,
             offset: 0,
@@ -322,7 +310,7 @@ impl Driver {
             let result = diesel::insert_into(drivers::table)
                 .values(&new_driver)
                 .returning(Driver::as_returning())
-                .get_result(&mut connection);
+                .get_result(conn);
 
             if let Err(e) = result {
                 println!("Error inserting driver {}: {}", driver.driver_id, e);
@@ -330,19 +318,18 @@ impl Driver {
         }
     }
 
-    pub fn is_exist() -> bool {
-        let results = Driver::get();
+    pub fn is_exist(conn: &mut PooledConnection) -> bool {
+        let results = Driver::get(conn);
         if results.is_empty() {
             return false;
         }
         true
     }
 
-    pub fn generate_response() -> Vec<DriverResponse> {
+    pub fn generate_response(conn: &mut PooledConnection) -> Vec<DriverResponse> {
         use crate::db::schema::drivers::dsl::*;
 
-        let mut connection = establish_connection();
-        let results = drivers.load::<Driver>(&mut connection);
+        let results = drivers.load::<Driver>(conn);
 
         match results {
             Ok(s) => s
@@ -389,29 +376,26 @@ pub struct Constructor {
 }
 
 impl Constructor {
-    pub fn get() -> Vec<Constructor> {
+    pub fn get(conn: &mut PooledConnection) -> Vec<Constructor> {
         use crate::db::schema::constructors;
-        let mut connection = establish_connection();
         constructors::table
-            .load::<Constructor>(&mut connection)
+            .load::<Constructor>(conn)
             .expect("loading error")
             .into_iter()
             .collect::<Vec<Constructor>>()
     }
 
-    pub fn get_by_id(id: &str) -> Constructor {
+    pub fn get_by_id(id: &str, conn: &mut PooledConnection) -> Constructor {
         use crate::db::schema::constructors;
-        let mut connection = establish_connection();
         constructors::table
             .filter(constructors::id.eq(id))
-            .first::<Constructor>(&mut connection)
+            .first::<Constructor>(conn)
             .expect("loading error")
     }
 
-    pub async fn post() -> () {
+    pub async fn post(conn: &mut PooledConnection) -> () {
         use crate::db::schema::constructors;
 
-        let mut connection = establish_connection();
         let params = URLParams {
             limit: 1000,
             offset: 0,
@@ -432,7 +416,7 @@ impl Constructor {
             let result = diesel::insert_into(constructors::table)
                 .values(&new_constructor)
                 .returning(Constructor::as_returning())
-                .get_result(&mut connection);
+                .get_result(conn);
 
             if let Err(e) = result {
                 println!(
@@ -443,19 +427,18 @@ impl Constructor {
         }
     }
 
-    pub fn is_exist() -> bool {
-        let results = Constructor::get();
+    pub fn is_exist(conn: &mut PooledConnection) -> bool {
+        let results = Constructor::get(conn);
         if results.is_empty() {
             return false;
         }
         true
     }
 
-    pub fn generate_response() -> Vec<ConstructorResponse> {
+    pub fn generate_response(conn: &mut PooledConnection) -> Vec<ConstructorResponse> {
         use crate::db::schema::constructors::dsl::*;
 
-        let mut connection = establish_connection();
-        let results = constructors.load::<Constructor>(&mut connection);
+        let results = constructors.load::<Constructor>(conn);
 
         match results {
             Ok(s) => s
@@ -500,22 +483,20 @@ pub struct Standing {
 }
 
 impl Standing {
-    pub fn get(race: &Race) -> Vec<Standing> {
+    pub fn get(race: &Race, conn: &mut PgConnection) -> Vec<Standing> {
         use crate::db::schema::standings;
-        let mut connection = establish_connection();
         standings::table
             .filter(standings::race.eq(race.id))
-            .load::<Standing>(&mut connection)
+            .load::<Standing>(conn)
             .expect("loading error")
             .into_iter()
             .collect::<Vec<Standing>>()
     }
 
-    pub async fn post(race: &Race) -> () {
+    pub async fn post(race: &Race, conn: &mut PooledConnection) -> () {
         use crate::db::schema::standings;
 
-        let mut connection = establish_connection();
-        let season = Season::get_by_id(race.season);
+        let season = Season::get_by_id(race.season, conn);
         let path = Path {
             year: season.season,
             round: Some(race.round),
@@ -536,11 +517,11 @@ impl Standing {
             .unwrap()
             .driver_standings;
         for standing in standing_list {
-            let driver = Driver::get()
+            let driver = Driver::get(conn)
                 .into_iter()
                 .find(|d| d.id == standing.driver.driver_id)
                 .unwrap();
-            let constructor = Constructor::get()
+            let constructor = Constructor::get(conn)
                 .into_iter()
                 .find(|c| c.id == standing.constructors.get(0).unwrap().constructor_id)
                 .unwrap();
@@ -558,7 +539,7 @@ impl Standing {
             let result = diesel::insert_into(standings::table)
                 .values(&new_standing)
                 .returning(Standing::as_returning())
-                .get_result(&mut connection);
+                .get_result(conn);
 
             if let Err(e) = result {
                 println!(
@@ -569,29 +550,29 @@ impl Standing {
         }
     }
 
-    pub fn is_exist(race: &Race) -> bool {
-        let results = Standing::get(race);
+    pub fn is_exist(race: &Race, conn: &mut PooledConnection) -> bool {
+        let results = Standing::get(race, conn);
         if results.is_empty() {
             return false;
         }
         true
     }
 
-    pub async fn generate_response(race: &Race) -> ChartResponse<String, i32> {
-        if !Standing::is_exist(&race) {
+    pub async fn generate_response(race: &Race, conn: &mut PooledConnection) -> ChartResponse<String, i32> {
+        if !Standing::is_exist(&race, conn) {
             println!("Standing data is not in the database. Fetch from Ergast API.");
             // if not, fetch standing data from Ergast API and insert it into the database
-            Standing::post(&race).await;
+            Standing::post(&race, conn).await;
         }
 
-        let results = Standing::get(race);
+        let results = Standing::get(race, conn);
         let mut x = Vec::new();
         let mut y = Vec::new();
         let mut color = Vec::new();
 
         for entity in results {
-            let driver = Driver::get_by_id(&entity.driver_id);
-            let constructor = Constructor::get_by_id(&entity.constructor_id);
+            let driver = Driver::get_by_id(&entity.driver_id, conn);
+            let constructor = Constructor::get_by_id(&entity.constructor_id, conn);
             x.push(driver.code.unwrap_or("NA".to_string()));
             y.push(entity.points);
             color.push(ColorPallet::get_color(constructor.name.as_str()));
@@ -630,22 +611,20 @@ pub struct Laptime {
 }
 
 impl Laptime {
-    pub fn get(race: &Race) -> Vec<Laptime> {
+    pub fn get(race: &Race, conn: &mut PooledConnection) -> Vec<Laptime> {
         use crate::db::schema::laptimes;
-        let mut connection = establish_connection();
         laptimes::table
             .filter(laptimes::race_id.eq(race.id))
-            .load::<Laptime>(&mut connection)
+            .load::<Laptime>(conn)
             .expect("loading error")
             .into_iter()
             .collect::<Vec<Laptime>>()
     }
 
-    pub async fn post(race: &Race) -> () {
+    pub async fn post(race: &Race, conn: &mut PooledConnection) -> () {
         use crate::db::schema::laptimes;
 
-        let mut connection = establish_connection();
-        let season = Season::get_by_id(race.season);
+        let season = Season::get_by_id(race.season, conn);
         let path = Path {
             year: season.season,
             round: Some(race.round),
@@ -672,7 +651,7 @@ impl Laptime {
         for lap in laps {
             let lap_number = lap.number;
             for timing in &lap.timings {
-                let driver = Driver::get_by_id(&timing.driver_id);
+                let driver = Driver::get_by_id(&timing.driver_id, conn);
                 let new_laptime = NewLaptime {
                     race_id: &race.id,
                     driver_id: &driver.id,
@@ -688,7 +667,7 @@ impl Laptime {
                 let result = diesel::insert_into(laptimes::table)
                     .values(&new_laptime)
                     .returning(Laptime::as_returning())
-                    .get_result(&mut connection);
+                    .get_result(conn);
 
                 if let Err(e) = result {
                     println!(
@@ -700,8 +679,8 @@ impl Laptime {
         }
     }
 
-    pub fn is_exist(race: &Race) -> bool {
-        let results = Laptime::get(race);
+    pub fn is_exist(race: &Race, conn: &mut PooledConnection) -> bool {
+        let results = Laptime::get(race, conn);
         if results.is_empty() {
             return false;
         }
@@ -738,20 +717,20 @@ impl Laptime {
         Ok(minutes * 60.0 + seconds + milliseconds)
     }
 
-    pub async fn generate_response(race: &Race) -> Vec<LapLineChartData> {
-        if !Laptime::is_exist(&race) {
+    pub async fn generate_response(race: &Race, conn: &mut PooledConnection) -> Vec<LapLineChartData> {
+        if !Laptime::is_exist(&race, conn) {
             println!("Laptime data is not in the database. Fetch from Ergast API.");
             // if not, fetch standing data from Ergast API and insert it into the database
-            Laptime::post(&race).await;
+            Laptime::post(&race, conn).await;
         }
 
-        let laps = Laptime::get(&race);
+        let laps = Laptime::get(&race, conn);
         let mut map = HashMap::new();
         for lap in laps {
             println!("{}", lap.id);
-            let driver = Driver::get_by_id(&lap.driver_id);
+            let driver = Driver::get_by_id(&lap.driver_id, conn);
             let time = Laptime::convert_lap_time_text_to_f64(&lap.lap_time);
-            let race_result = RaceResult::get_by_race_and_driver(&race, &driver);
+            let race_result = RaceResult::get_by_race_and_driver(&race, &driver, conn);
             let lap = lap.lap_number;
             let entry = map
                 .entry(driver.id.clone())
@@ -794,22 +773,20 @@ pub struct Pitstop {
 }
 
 impl Pitstop {
-    pub fn get(race: &Race) -> Vec<Pitstop> {
+    pub fn get(race: &Race, conn: &mut PooledConnection) -> Vec<Pitstop> {
         use crate::db::schema::pitstops;
-        let mut connection = establish_connection();
         pitstops::table
             .filter(pitstops::race_id.eq(race.id))
-            .load::<Pitstop>(&mut connection)
+            .load::<Pitstop>(conn)
             .expect("loading error")
             .into_iter()
             .collect::<Vec<Pitstop>>()
     }
 
-    pub async fn post(race: &Race) -> () {
+    pub async fn post(race: &Race, conn: &mut PooledConnection) -> () {
         use crate::db::schema::pitstops;
 
-        let mut connection = establish_connection();
-        let season = Season::get_by_id(race.season);
+        let season = Season::get_by_id(race.season, conn);
         let path = Path {
             year: season.season,
             round: Some(race.round),
@@ -834,7 +811,7 @@ impl Pitstop {
         };
 
         for pitstop in pitstops {
-            let driver = Driver::get_by_id(&pitstop.driver_id);
+            let driver = Driver::get_by_id(&pitstop.driver_id, conn);
             let new_pitstop = NewPitstop {
                 race_id: &race.id,
                 driver_id: &driver.id,
@@ -851,7 +828,7 @@ impl Pitstop {
             let result = diesel::insert_into(pitstops::table)
                 .values(&new_pitstop)
                 .returning(Pitstop::as_returning())
-                .get_result(&mut connection);
+                .get_result(conn);
 
             if let Err(e) = result {
                 println!(
@@ -862,21 +839,21 @@ impl Pitstop {
         }
     }
 
-    pub fn is_exist(race: &Race) -> bool {
-        let results = Pitstop::get(race);
+    pub fn is_exist(race: &Race, conn: &mut PooledConnection) -> bool {
+        let results = Pitstop::get(race, conn);
         if results.is_empty() {
             return false;
         }
         true
     }
 
-    pub async fn generate_response(race: &Race) -> Vec<PitstopResponse> {
-        if !Pitstop::is_exist(&race) {
+    pub async fn generate_response(race: &Race, conn: &mut PooledConnection) -> Vec<PitstopResponse> {
+        if !Pitstop::is_exist(&race, conn) {
             println!("Pitstop data is not in the database. Fetch from Ergast API.");
             // if not, fetch pitstop data from Ergast API and insert it into the database
-            Pitstop::post(&race).await;
+            Pitstop::post(&race, conn).await;
         }
-        let pitstops = Pitstop::get(&race);
+        let pitstops = Pitstop::get(&race, conn);
         let vec = pitstops
             .iter()
             .map(|pitstop| PitstopResponse {
@@ -919,31 +896,28 @@ pub struct RaceResult {
 }
 
 impl RaceResult {
-    pub fn get(race: &Race) -> Vec<RaceResult> {
+    pub fn get(race: &Race, conn: &mut PooledConnection) -> Vec<RaceResult> {
         use crate::db::schema::race_results;
-        let mut connection = establish_connection();
         race_results::table
             .filter(race_results::race_id.eq(race.id))
-            .load::<RaceResult>(&mut connection)
+            .load::<RaceResult>(conn)
             .expect("loading error")
             .into_iter()
             .collect::<Vec<RaceResult>>()
     }
 
-    pub fn get_by_race_and_driver(race: &Race, driver: &Driver) -> RaceResult {
+    pub fn get_by_race_and_driver(race: &Race, driver: &Driver, conn: &mut PooledConnection) -> RaceResult {
         use crate::db::schema::race_results;
-        let mut connection = establish_connection();
         race_results::table
         .filter(race_results::race_id.eq(race.id).and(race_results::driver_id.eq(&driver.id)))
-        .first::<RaceResult>(&mut connection)
+        .first::<RaceResult>(conn)
         .expect("loading error")
     }
 
-    pub async fn post(race: &Race) -> () {
+    pub async fn post(race: &Race, conn: &mut PooledConnection) -> () {
         use crate::db::schema::race_results;
 
-        let mut connection = establish_connection();
-        let season = Season::get_by_id(race.season);
+        let season = Season::get_by_id(race.season, conn);
         let path = Path {
             year: season.season,
             round: Some(race.round),
@@ -968,8 +942,8 @@ impl RaceResult {
         };
 
         for result in results {
-            let driver = Driver::get_by_id(&result.driver.driver_id);
-            let contructor = Constructor::get_by_id(&result.constructor.constructor_id);
+            let driver = Driver::get_by_id(&result.driver.driver_id, conn);
+            let contructor = Constructor::get_by_id(&result.constructor.constructor_id, conn);
             let new_race_result = NewRaceResult {
                 race_id: &race.id,
                 driver_id: &driver.id,
@@ -986,7 +960,7 @@ impl RaceResult {
             let result = diesel::insert_into(race_results::table)
                 .values(&new_race_result)
                 .returning(RaceResult::as_returning())
-                .get_result(&mut connection);
+                .get_result(conn);
 
             if let Err(e) = result {
                 println!(
@@ -997,25 +971,25 @@ impl RaceResult {
         }
     }
 
-    pub fn is_exist(race: &Race) -> bool {
-        let results = RaceResult::get(race);
+    pub fn is_exist(race: &Race, conn: &mut PooledConnection) -> bool {
+        let results = RaceResult::get(race, conn);
         if results.is_empty() {
             return false;
         }
         true
     }
 
-    pub async fn generate_response(race: &Race) -> Vec<RaceResultResponse> {
-        if !RaceResult::is_exist(&race) {
+    pub async fn generate_response(race: &Race, conn: &mut PooledConnection) -> Vec<RaceResultResponse> {
+        if !RaceResult::is_exist(&race, conn) {
             println!("RaceResult data is not in the database. Fetch from Ergast API.");
             // if not, fetch RaceResult data from Ergast API and insert it into the database
-            RaceResult::post(&race).await;
+            RaceResult::post(&race, conn).await;
         }
-        let race_results = RaceResult::get(&race);
+        let race_results = RaceResult::get(&race, conn);
         let mut vec = Vec::new();
         for race_result in race_results {
-            let driver = Driver::get_by_id(&race_result.driver_id);
-            let constructor = Constructor::get_by_id(&race_result.constructor_id);
+            let driver = Driver::get_by_id(&race_result.driver_id, conn);
+            let constructor = Constructor::get_by_id(&race_result.constructor_id, conn);
             let r = RaceResultResponse {
                 id: race_result.id,
                 position: race_result.position,
