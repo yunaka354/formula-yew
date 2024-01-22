@@ -19,7 +19,7 @@ pub fn laps(props: &DetailProps) -> Html {
             wasm_bindgen_futures::spawn_local(async move {
                 let data = data.clone();
                 let url = format!(
-                    "http://localhost:3000/laps-chart?year={}&round={}",
+                    "http://localhost:3000/laps-chart?year={}&round={}&exclude_pitstop=true",
                     props.year, props.round
                 );
                 let response = utils::fetch_server::<Vec<LapLineChartData>>(&url).await;
@@ -61,7 +61,7 @@ pub fn laps_box(props: &DetailProps) -> Html {
             wasm_bindgen_futures::spawn_local(async move {
                 let data = data.clone();
                 let url = format!(
-                    "http://localhost:3000/laps-chart?year={}&round={}",
+                    "http://localhost:3000/laps-chart?year={}&round={}&exclude_pitstop=true",
                     props.year, props.round
                 );
                 let response = utils::fetch_server::<Vec<LapLineChartData>>(&url).await;

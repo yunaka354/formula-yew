@@ -1,6 +1,6 @@
 use crate::db::connection::Pool;
 use crate::db::db_models::{self, Season};
-use crate::queries::{RoundQuery, YearQuery};
+use crate::queries::{RoundQuery, YearQuery, LapChartQuery};
 use axum::extract::Query;
 use axum::response::IntoResponse;
 use axum::Extension;
@@ -112,11 +112,11 @@ pub async fn laps_handler(
 
 pub async fn laps_chart_handler(
     Extension(pool): Extension<Pool>,
-    round: Query<RoundQuery>,
+    query: Query<LapChartQuery>,
 ) -> Result<(StatusCode, Json<Value>), (StatusCode, Json<&'static str>)> {
     let mut conn = pool.get().expect("Failed to get DB connection from pool");
-    let season = Season::get(round.year, &mut conn);
-    let race = db_models::Race::get(&season, round.round, &mut conn);
+    let season = Season::get(query.year, &mut conn);
+    let race = db_models::Race::get(&season, query.round, &mut conn);
 
     let race = match race {
         Some(r) => r,
@@ -124,7 +124,7 @@ pub async fn laps_chart_handler(
             return Err((StatusCode::BAD_REQUEST, Json("error")));
         }
     };
-    let result = db_models::Laptime::generate_response(&race, &mut conn).await;
+    let result = db_models::Laptime::generate_response(&race, query.exclude_pitstop, &mut conn).await;
     let value = serde_json::to_value(result).unwrap();
     Ok((StatusCode::OK, Json(value)))
 }

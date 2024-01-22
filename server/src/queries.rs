@@ -7,6 +7,13 @@ pub struct RoundQuery {
 }
 
 #[derive(Deserialize)]
+pub struct LapChartQuery {
+    pub year: i32,
+    pub round: i32,
+    pub exclude_pitstop: bool,
+}
+
+#[derive(Deserialize)]
 pub struct YearQuery {
     pub year: i32,
 }

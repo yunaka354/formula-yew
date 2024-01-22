@@ -13,7 +13,7 @@ use ergast_rust::api::{Path, URLParams};
 use ergast_rust::ergast::Ergast;
 use serde::Serialize;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -635,14 +635,29 @@ pub struct Laptime {
 }
 
 impl Laptime {
-    pub fn get(race: &Race, conn: &mut PooledConnection) -> Vec<Laptime> {
+    pub fn get(race: &Race, conn: &mut PooledConnection) -> Vec<(Laptime, Option<Pitstop>, Driver, RaceResult)> {
         use crate::db::schema::laptimes;
+        use crate::db::schema::pitstops;
+        use crate::db::schema::drivers;
+        use crate::db::schema::race_results;
         laptimes::table
+            // join to laptime table
+            .left_join(pitstops::table
+                .on(
+                    laptimes::race_id.eq(pitstops::race_id)
+                    .and(laptimes::driver_id.eq(pitstops::driver_id))
+                    .and(laptimes::lap_number.eq(pitstops::lap_number))
+                )
+            )
+            // join to driver table
+            .inner_join(drivers::table.on(laptimes::driver_id.eq(drivers::id)))
+            // join to race results table
+            .inner_join(race_results::table.on(laptimes::race_id.eq(race_results::race_id).and(laptimes::driver_id.eq(race_results::driver_id))))
             .filter(laptimes::race_id.eq(race.id))
-            .load::<Laptime>(conn)
+            .load::<(Laptime, Option<Pitstop>, Driver, RaceResult)>(conn)
             .expect("loading error")
             .into_iter()
-            .collect::<Vec<Laptime>>()
+            .collect::<Vec<(Laptime, Option<Pitstop>, Driver, RaceResult)>>()
     }
 
     pub async fn post(race: &Race, conn: &mut PooledConnection) -> () {
@@ -743,31 +758,59 @@ impl Laptime {
 
     pub async fn generate_response(
         race: &Race,
+        exclude_pitstop: bool,
         conn: &mut PooledConnection,
     ) -> Vec<LapLineChartData> {
         if !Laptime::is_exist(&race, conn) {
             println!("Laptime data is not in the database. Fetch from Ergast API.");
-            // if not, fetch standing data from Ergast API and insert it into the database
+            // if not, fetch laptime data from Ergast API and insert it into the database
             Laptime::post(&race, conn).await;
+        }
+        if !Pitstop::is_exist(&race, conn) {
+            println!("Pitstop data is not in the database. Fetch from Ergast API.");
+            // if not, fetch pitstop data from Ergast API and insert it into the database
+            Pitstop::post(&race, conn).await;
         }
 
         let laps = Laptime::get(&race, conn);
         let mut map = HashMap::new();
-        for lap in laps {
-            let driver = Driver::get_by_id(&lap.driver_id, conn);
-            let time = Laptime::convert_lap_time_text_to_f64(&lap.lap_time);
-            let race_result = RaceResult::get_by_race_and_driver(&race, &driver, conn);
-            let lap = lap.lap_number;
+        let mut pitstop_set = HashSet::new(); // set to chech if the driver pitted in the lap
+
+        
+        for (_laptime, pitstop, driver, _race_result) in &laps {
+            if let Some(pit) = pitstop {
+                pitstop_set.insert((driver.id.clone(), pit.lap_number - 1)); // add inlap.
+                pitstop_set.insert((driver.id.clone(), pit.lap_number));
+                pitstop_set.insert((driver.id.clone(), pit.lap_number + 1)); // add outlap.
+            }
+        }
+
+        for (laptime, _pitstop, driver, race_result) in laps {
+            let time = Laptime::convert_lap_time_text_to_f64(&laptime.lap_time);
+
+            // skip if exclude_pitstop is true and the driver pitted in the lap
+            if exclude_pitstop && pitstop_set.contains(&(driver.id.clone(), laptime.lap_number)) {
+                continue;
+            }
+
+            // get reference to the entry in the map
             let entry = map
                 .entry(driver.id.clone())
                 .or_insert(LapLineChartData::new(driver.id, race_result, conn));
-            entry.laps.push(lap);
+
+            // push lap number into x axis
+            entry.laps.push(laptime.lap_number);
+
+            // push lap time into y axis
             entry.laptime.push(time.unwrap());
         }
+
+        // convert map to vector
         let mut vec = map
             .into_iter()
             .map(|(_, v)| v)
             .collect::<Vec<LapLineChartData>>();
+
         // vec.sort_by(|a, b| a.driver_id.partial_cmp(&b.driver_id).unwrap());
         vec.sort_by(|a, b| a.position.partial_cmp(&b.position).unwrap());
         vec
@@ -837,6 +880,13 @@ impl Pitstop {
         };
 
         for pitstop in pitstops {
+            let duration = match pitstop.duration.parse::<BigDecimal>() {
+                Ok(d) => d,
+                Err(_) => {
+                    // if duration is not available, set it to 0
+                    BigDecimal::from(0)
+                }
+            };
             let driver = Driver::get_by_id(&pitstop.driver_id, conn);
             let new_pitstop = NewPitstop {
                 race_id: &race.id,
@@ -844,7 +894,7 @@ impl Pitstop {
                 lap_number: &pitstop.lap,
                 pitstop_number: &pitstop.stop,
                 pittime: &pitstop.time,
-                duration: &pitstop.duration.parse::<BigDecimal>().unwrap(),
+                duration: &duration,
             };
 
             println!(
@@ -933,22 +983,6 @@ impl RaceResult {
             .expect("loading error")
             .into_iter()
             .collect::<Vec<RaceResult>>()
-    }
-
-    pub fn get_by_race_and_driver(
-        race: &Race,
-        driver: &Driver,
-        conn: &mut PooledConnection,
-    ) -> RaceResult {
-        use crate::db::schema::race_results;
-        race_results::table
-            .filter(
-                race_results::race_id
-                    .eq(race.id)
-                    .and(race_results::driver_id.eq(&driver.id)),
-            )
-            .first::<RaceResult>(conn)
-            .expect("loading error")
     }
 
     pub async fn post(race: &Race, conn: &mut PooledConnection) -> () {
