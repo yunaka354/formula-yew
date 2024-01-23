@@ -1,7 +1,7 @@
+use crate::components::charts::LapBoxChart;
 use crate::components::DetailProps;
 use crate::components::LapChart;
 use crate::components::Spinner;
-use crate::components::charts::LapBoxChart;
 use crate::models::LapLineChartData;
 use crate::utils;
 use yew::prelude::*;

@@ -1,4 +1,4 @@
-use crate::components::{Laps, Results, Standings, laps::LapsBox};
+use crate::components::{laps::LapsBox, Laps, Results, Standings};
 use std::collections::HashMap;
 use yew::prelude::*;
 use yew_router::prelude::*;

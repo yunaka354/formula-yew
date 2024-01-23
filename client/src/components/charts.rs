@@ -1,7 +1,7 @@
 use crate::components::props::ChartProps;
 use plotly::box_plot::BoxPoints;
 use plotly::common::{Line, Marker};
-use plotly::{Bar, Plot, Scatter, BoxPlot};
+use plotly::{Bar, BoxPlot, Plot, Scatter};
 use yew::prelude::*;
 
 use crate::components::props::LapLineChartProps;
@@ -92,7 +92,8 @@ pub fn lap_box_chart(props: &LapLineChartProps) -> Html {
                 plot.add_trace(trace);
             }
 
-            let layout = plotly::Layout::new().title(plotly::common::Title::new("Lap Time Box Plot"));
+            let layout =
+                plotly::Layout::new().title(plotly::common::Title::new("Lap Time Box Plot"));
             plot.set_layout(layout);
             plotly::bindings::new_plot(&props.plot_id, &plot).await;
             Ok(())
